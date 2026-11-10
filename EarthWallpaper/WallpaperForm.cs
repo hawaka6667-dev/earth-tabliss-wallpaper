@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -57,25 +58,103 @@ namespace EarthWallpaper
             
             var itemIcons = new ToolStripMenuItem("👁 显隐桌面图标", null, (s, e) => DesktopWorker.ToggleDesktopIcons());
             var itemNext = new ToolStripMenuItem("⏭ 下一张地球壁纸", null, (s, e) => SendWebMessage("next_wallpaper"));
-            var itemGemini = new ToolStripMenuItem("✨ Gemini 地貌深度研判", null, (s, e) => SendWebMessage("open_gemini"));
+            var itemBookmarks = new ToolStripMenuItem("⭐ 我的地标收藏夹", null, (s, e) => _petForm?.OpenGeminiHub(true));
+            var itemGemini = new ToolStripMenuItem("✨ Ask Gemini 地貌研判", null, (s, e) => _petForm?.OpenGeminiHub(false));
+            
+            var itemSkin = new ToolStripMenuItem($"🎨 切换桌宠皮肤 ({PetSkinManager.GetSkinDisplayName(PetSkinManager.CurrentSkin)})", null, (s, e) =>
+            {
+                PetSkinManager.CycleNextSkin();
+                (s as ToolStripMenuItem)!.Text = $"🎨 切换桌宠皮肤 ({PetSkinManager.GetSkinDisplayName(PetSkinManager.CurrentSkin)})";
+            });
+
+            var itemShowcase = new ToolStripMenuItem("📱 挑选桌宠方案 (HTML 交互预览)", null, (s, e) => OpenSkinShowcase());
+            var itemReload = new ToolStripMenuItem("🔄 重载 / 重启应用 (Reload)", null, (s, e) => RestartApplication());
             var itemExit = new ToolStripMenuItem("🚪 退出 Earth Tabliss (恢复原壁纸)", null, (s, e) => ExitApplication());
 
             menu.Items.AddRange(new ToolStripItem[] {
                 itemIcons,
                 itemNext,
-                itemGemini,
                 new ToolStripSeparator(),
+                itemBookmarks,
+                itemGemini,
+                itemSkin,
+                itemShowcase,
+                new ToolStripSeparator(),
+                itemReload,
                 itemExit
             });
 
             _trayIcon = new NotifyIcon
             {
-                Text = "Earth Tabliss - 高性能动态桌面壁纸",
-                Icon = SystemIcons.Application,
+                Text = "Earth Tabliss - 高性能动态桌面壁纸与桌宠",
+                Icon = CreateEarthTrayIcon(),
                 ContextMenuStrip = menu,
                 Visible = true
             };
-            _trayIcon.DoubleClick += (s, e) => SendWebMessage("open_gemini");
+            _trayIcon.DoubleClick += (s, e) => _petForm?.OpenGeminiHub(false);
+        }
+
+        private Icon CreateEarthTrayIcon()
+        {
+            try
+            {
+                using var bmp = new Bitmap(32, 32);
+                using var g = Graphics.FromImage(bmp);
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+
+                using (var b = new SolidBrush(Color.FromArgb(15, 23, 42)))
+                    g.FillEllipse(b, 1, 1, 29, 29);
+                using (var p = new Pen(Color.FromArgb(56, 189, 248), 2f))
+                    g.DrawEllipse(p, 2, 2, 27, 27);
+                using var font = new Font("Segoe UI Emoji", 13f);
+                var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                g.DrawString("🌍", font, Brushes.White, new RectangleF(0, 0, 32, 32), sf);
+
+                IntPtr hIcon = bmp.GetHicon();
+                return Icon.FromHandle(hIcon);
+            }
+            catch
+            {
+                return SystemIcons.Application;
+            }
+        }
+
+        public void OpenSkinShowcase()
+        {
+            try
+            {
+                string showcasePath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "app", "pet_showcase.html"));
+                if (!File.Exists(showcasePath)) showcasePath = @"F:\antigravity\earth屏保\app\pet_showcase.html";
+                Process.Start(new ProcessStartInfo(showcasePath) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                Program.Log($"OpenSkinShowcase error: {ex.Message}");
+            }
+        }
+
+        private void RestartApplication()
+        {
+            try
+            {
+                Program.Log("WallpaperForm: Restarting application...");
+                string startBat = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "start.bat"));
+                if (!File.Exists(startBat)) startBat = @"F:\antigravity\earth屏保\start.bat";
+
+                if (File.Exists(startBat))
+                {
+                    Process.Start(new ProcessStartInfo(startBat) { UseShellExecute = true });
+                }
+                else
+                {
+                    Process.Start(new ProcessStartInfo(Application.ExecutablePath) { UseShellExecute = true });
+                }
+                ExitApplication();
+            }
+            catch (Exception ex)
+            {
+                Program.Log($"RestartApplication error: {ex.Message}");
+            }
         }
 
         protected override async void OnLoad(EventArgs e)

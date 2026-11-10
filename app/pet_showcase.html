@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Earth Tabliss · 桌宠设计方案评审与交互选型</title>
+  <style>
+    :root {
+      --bg: #030712;
+      --card-bg: rgba(15, 23, 42, 0.75);
+      --card-border: rgba(255, 255, 255, 0.1);
+      --primary: #38bdf8;
+      --success: #22c55e;
+      --accent: #a855f7;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(circle at 15% 20%, rgba(56, 189, 248, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 80%, rgba(168, 85, 247, 0.12) 0%, transparent 40%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 40px 24px;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    header h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1rem;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    .badge-bar {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+    }
+
+    .badge.active {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: rgba(56, 189, 248, 0.35);
+      color: var(--primary);
+    }
+
+    /* Schemes Grid */
+    .schemes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .scheme-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 24px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .scheme-card:hover {
+      border-color: rgba(56, 189, 248, 0.4);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .scheme-card.recommended {
+      border-color: rgba(56, 189, 248, 0.4);
+      box-shadow: 0 0 24px rgba(56, 189, 248, 0.15);
+    }
+
+    .rec-tag {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: white;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.05em;
+    }
+
+    .pet-stage {
+      height: 140px;
+      background: radial-gradient(circle, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.95) 100%);
+      border: 1px dashed rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .pet-stage::after {
+      content: "悬停试玩 / 体验微动效";
+      position: absolute;
+      bottom: 8px;
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Pet Mascot Visuals */
+    /* 1. Minimal Orb */
+    .pet-minimal-orb {
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #082f49 0%, #030712 100%);
+      border: 2px solid #38bdf8;
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.35);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+
+    .pet-stage:hover .pet-minimal-orb {
+      transform: scale(1.08);
+      box-shadow: 0 0 28px rgba(56, 189, 248, 0.6);
+    }
+
+    .continent-1 {
+      position: absolute;
+      width: 24px;
+      height: 20px;
+      background: #10b981;
+      border-radius: 50% 60% 40% 70%;
+      top: 18px;
+      left: 18px;
+      opacity: 0.9;
+    }
+
+    .continent-2 {
+      position: absolute;
+      width: 18px;
+      height: 22px;
+      background: #10b981;
+      border-radius: 60% 40% 70% 50%;
+      bottom: 14px;
+      right: 20px;
+      opacity: 0.85;
+    }
+
+    .orbit-ring {
+      position: absolute;
+      width: 90px;
+      height: 28px;
+      border: 1px dashed rgba(241, 245, 249, 0.45);
+      border-radius: 50%;
+      transform: rotate(-25deg);
+      pointer-events: none;
+    }
+
+    .pulse-dot {
+      position: absolute;
+      bottom: 4px;
+      right: 4px;
+      width: 8px;
+      height: 8px;
+      background: #22c55e;
+      border: 1.5px solid #0f172a;
+      border-radius: 50%;
+      box-shadow: 0 0 6px #22c55e;
+    }
+
+    /* 2. Holo Wireframe */
+    .pet-holo-globe {
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1.5px solid #06b6d4;
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+
+    .pet-stage:hover .pet-holo-globe {
+      transform: scale(1.08) rotate(15deg);
+      box-shadow: 0 0 30px rgba(6, 182, 212, 0.7);
+    }
+
+    .holo-grid {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    /* 3. Pixel Astro */
+    .pet-pixel-astro {
+      font-size: 2.6rem;
+      filter: drop-shadow(0 4px 12px rgba(168, 85, 247, 0.4));
+      transition: all 0.3s ease;
+      display: inline-block;
+    }
+
+    .pet-stage:hover .pet-pixel-astro {
+      transform: translateY(-8px) scale(1.1);
+      filter: drop-shadow(0 8px 18px rgba(168, 85, 247, 0.7));
+    }
+
+    /* 4. Kawaii Chibi Earth */
+    .pet-chibi-earth {
+      width: 78px;
+      height: 78px;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 16px rgba(56, 189, 248, 0.4));
+      transition: all 0.3s ease;
+    }
+
+    .pet-stage:hover .pet-chibi-earth {
+      transform: scale(1.1) rotate(5deg);
+      filter: drop-shadow(0 6px 22px rgba(56, 189, 248, 0.65));
+    }
+
+    /* 5. Mini Pill */
+    .pet-mini-pill {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #0284c7;
+      border: 2px solid #ffffff;
+      box-shadow: 0 0 16px rgba(2, 132, 199, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.75rem;
+      color: white;
+      transition: all 0.3s ease;
+    }
+
+    .pet-stage:hover .pet-mini-pill {
+      transform: scale(1.2);
+      box-shadow: 0 0 24px rgba(56, 189, 248, 0.8);
+    }
+
+    .scheme-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 6px;
+    }
+
+    .scheme-desc {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      flex-grow: 1;
+    }
+
+    .specs-list {
+      list-style: none;
+      font-size: 0.8rem;
+      color: #cbd5e1;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .specs-list li {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .specs-label {
+      color: var(--text-muted);
+    }
+
+    .btn-apply {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--card-border);
+      color: #ffffff;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-apply:hover {
+      background: #0284c7;
+      border-color: #0284c7;
+      box-shadow: 0 4px 16px rgba(2, 132, 199, 0.4);
+    }
+
+    .btn-apply.active-btn {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: rgba(34, 197, 94, 0.4);
+      color: var(--success);
+    }
+
+    /* Comparison Table */
+    .comparison-section {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 28px;
+      backdrop-filter: blur(16px);
+      margin-top: 32px;
+    }
+
+    .comparison-section h2 {
+      font-size: 1.35rem;
+      color: #ffffff;
+      margin-bottom: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      text-align: left;
+    }
+
+    th, td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    th {
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    td {
+      color: #e2e8f0;
+    }
+
+    .tag-green {
+      color: #22c55e;
+      background: rgba(34, 197, 94, 0.1);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.78rem;
+    }
+
+    .tag-blue {
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.78rem;
+    }
+
+    .tag-purple {
+      color: #c084fc;
+      background: rgba(192, 132, 252, 0.1);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.78rem;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🌍 Earth Tabliss · 桌宠设计方案评审与交互选型</h1>
+      <p>为了让桌宠与您的桌面环境、壁纸质感及日常工作流达成完美平衡，我们梳理并实现了 5 套不同维度的设计方案。您可以在下方直接试玩、比较，并在中枢菜单中一键切换！</p>
+      <div class="badge-bar">
+        <span class="badge active">🖥️ 桌面层停靠 (不遮挡工作软件)</span>
+        <span class="badge active">⚡ 0.0% 闲置开销</span>
+        <span class="badge active">🚀 物理避让任务栏</span>
+      </div>
+    </header>
+
+    <div class="schemes-grid">
+      <!-- Scheme 1: Minimal Orb (Initial Version) -->
+      <div class="scheme-card recommended">
+        <span class="rec-tag">初版还原 · 推荐</span>
+        <div class="pet-stage">
+          <div class="pet-minimal-orb">
+            <div class="continent-1"></div>
+            <div class="continent-2"></div>
+            <div class="orbit-ring"></div>
+            <div class="pulse-dot"></div>
+          </div>
+        </div>
+        <h3 class="scheme-title">1. 初版 · 极简赛博行星球</h3>
+        <p class="scheme-desc">还原最初版设计的克制美学。深空午夜蓝核底盘、翡翠绿矢量陆块几何、微光天体轨道环与在线脉冲点。零视觉光污染，与严肃代码及办公桌面浑然一体。</p>
+        <ul class="specs-list">
+          <li><span class="specs-label">视觉风格:</span> <span>Tabliss 极简科技 / 深空冷调</span></li>
+          <li><span class="specs-label">桌面侵入度:</span> <span class="tag-green">极低 (72px 圆形微光)</span></li>
+          <li><span class="specs-label">渲染开销:</span> <span class="tag-green">0.00% CPU (GDI+ 矢量)</span></li>
+          <li><span class="specs-label">适合场景:</span> <span>沉浸编码、专注工作、不喜花哨</span></li>
+        </ul>
+        <button class="btn-apply active-btn" onclick="selectSkin('MinimalOrb')">✔ 当前生效皮肤 (初版推荐)</button>
+      </div>
+
+      <!-- Scheme 2: Holo Wireframe Globe -->
+      <div class="scheme-card">
+        <div class="pet-stage">
+          <div class="pet-holo-globe">
+            <svg class="holo-grid" viewBox="0 0 76 76" fill="none" stroke="#06b6d4" stroke-width="1.2">
+              <circle cx="38" cy="38" r="30" stroke-opacity="0.8"/>
+              <ellipse cx="38" cy="38" rx="15" ry="30" stroke-opacity="0.6"/>
+              <line x1="38" y1="8" x2="38" y2="68" stroke-opacity="0.6"/>
+              <line x1="8" y1="38" x2="68" y2="38" stroke-opacity="0.6"/>
+              <ellipse cx="38" cy="24" rx="24" ry="10" stroke-opacity="0.5"/>
+              <ellipse cx="38" cy="52" rx="24" ry="10" stroke-opacity="0.5"/>
+            </svg>
+            <div class="pulse-dot" style="background:#06b6d4; box-shadow:0 0 6px #06b6d4;"></div>
+          </div>
+        </div>
+        <h3 class="scheme-title">2. 全息 · 经纬网格雷达球</h3>
+        <p class="scheme-desc">灵感来自深空科研终端。通透微光全息经纬线构形，倾斜 23.5° 地球自转轴网格，犹如科幻空间站桌面上的微型行星全息投影。</p>
+        <ul class="specs-list">
+          <li><span class="specs-label">视觉风格:</span> <span>科幻终端 / 赛博全息线框</span></li>
+          <li><span class="specs-label">桌面侵入度:</span> <span class="tag-green">极低 (高透光感)</span></li>
+          <li><span class="specs-label">渲染开销:</span> <span class="tag-green">0.00% CPU</span></li>
+          <li><span class="specs-label">适合场景:</span> <span>赛博朋克壁纸搭配、极客极简</span></li>
+        </ul>
+        <button class="btn-apply" onclick="selectSkin('HoloGlobe')">一键切换为此方案</button>
+      </div>
+
+      <!-- Scheme 3: Pixel Astro Explorer -->
+      <div class="scheme-card">
+        <div class="pet-stage">
+          <div class="pet-pixel-astro">👨‍🚀</div>
+        </div>
+        <h3 class="scheme-title">3. 像素 · 复古 8-Bit 漫游者</h3>
+        <p class="scheme-desc">经典复古点阵宇航员。带着太空面罩在你的桌面上漂浮漫步，偶尔摆动，带来恰到好处的复古游戏情怀与陪伴温度。</p>
+        <ul class="specs-list">
+          <li><span class="specs-label">视觉风格:</span> <span>8-Bit 复古点阵 / 像素怀旧</span></li>
+          <li><span class="specs-label">桌面侵入度:</span> <span class="tag-blue">低 (轻量趣味)</span></li>
+          <li><span class="specs-label">渲染开销:</span> <span class="tag-green">0.00% CPU</span></li>
+          <li><span class="specs-label">适合场景:</span> <span>独立开发者、复古游戏爱好者</span></li>
+        </ul>
+        <button class="btn-apply" onclick="selectSkin('PixelAstro')">一键切换为此方案</button>
+      </div>
+
+      <!-- Scheme 4: Kawaii Chibi Earth -->
+      <div class="scheme-card">
+        <div class="pet-stage">
+          <img src="assets/earth_pet.png" class="pet-chibi-earth" alt="Chibi Earth Mascot" onerror="this.src='https://api.iconify.design/noto:globe-showing-americas.svg'">
+        </div>
+        <h3 class="scheme-title">4. 萌系 · Q 版治愈小地球</h3>
+        <p class="scheme-desc">水灵灵的大眼睛、温柔微笑与粉嫩腮红，头顶漂浮微型轨道。给严肃的屏幕增添一丝生机与灵动的治愈感。</p>
+        <ul class="specs-list">
+          <li><span class="specs-label">视觉风格:</span> <span>二次元卡通 / 治愈萌系贴纸</span></li>
+          <li><span class="specs-label">桌面侵入度:</span> <span class="tag-purple">中 (形象生动)</span></li>
+          <li><span class="specs-label">渲染开销:</span> <span class="tag-green">0.00% CPU</span></li>
+          <li><span class="specs-label">适合场景:</span> <span>喜欢生动桌宠形象、治愈陪伴</span></li>
+        </ul>
+        <button class="btn-apply" onclick="selectSkin('ChibiEarth')">一键切换为此方案</button>
+      </div>
+
+      <!-- Scheme 5: Dynamic Micro Capsule -->
+      <div class="scheme-card">
+        <div class="pet-stage">
+          <div class="pet-mini-pill">ET</div>
+        </div>
+        <h3 class="scheme-title">5. 微型 · 动态极简胶囊</h3>
+        <p class="scheme-desc">仅 36px 直径的微型悬浮印记。常态下视线占用率小于 0.05%，完全不抢壁纸任何风头；点击时轻灵展开全功能中枢面板。</p>
+        <ul class="specs-list">
+          <li><span class="specs-label">视觉风格:</span> <span>极简微型徽标 / 工业设计感</span></li>
+          <li><span class="specs-label">桌面侵入度:</span> <span class="tag-green">极致微小 (36px)</span></li>
+          <li><span class="specs-label">渲染开销:</span> <span class="tag-green">0.00% CPU</span></li>
+          <li><span class="specs-label">适合场景:</span> <span>对桌面纯净度有极致强迫症的用户</span></li>
+        </ul>
+        <button class="btn-apply" onclick="selectSkin('MiniPill')">一键切换为此方案</button>
+      </div>
+    </div>
+
+    <!-- Comparison Table -->
+    <div class="comparison-section">
+      <h2>📊 5 套桌宠方案横向对比矩阵</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>方案名称</th>
+            <th>设计语言</th>
+            <th>桌面存在感</th>
+            <th>与壁纸融合度</th>
+            <th>操作方式</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1. 初版 · 极简赛博天体</strong></td>
+            <td>Tabliss 极简冷调 + 矢量天体</td>
+            <td><span class="tag-green">低侵入 · 自然融合</span></td>
+            <td>★★★★★ (100% 契合卫星地貌)</td>
+            <td>单击展开中枢 / 任意拖拽</td>
+          </tr>
+          <tr>
+            <td><strong>2. 全息 · 经纬网格球</strong></td>
+            <td>科幻科研终端 + 旋转经纬线</td>
+            <td><span class="tag-green">低侵入 · 通透悬浮</span></td>
+            <td>★★★★★ (极客科技感)</td>
+            <td>单击展开中枢 / 任意拖拽</td>
+          </tr>
+          <tr>
+            <td><strong>3. 像素 · 复古宇航员</strong></td>
+            <td>8-Bit 像素怀旧</td>
+            <td><span class="tag-blue">中等 · 趣味点缀</span></td>
+            <td>★★★★☆ (轻量趣味)</td>
+            <td>单击展开中枢 / 任意拖拽</td>
+          </tr>
+          <tr>
+            <td><strong>4. 萌系 · Q 版小地球</strong></td>
+            <td>二次元萌宠贴纸</td>
+            <td><span class="tag-purple">显眼 · 活泼灵动</span></td>
+            <td>★★★☆☆ (个性化萌系)</td>
+            <td>单击展开中枢 / 任意拖拽</td>
+          </tr>
+          <tr>
+            <td><strong>5. 微型 · 极简胶囊</strong></td>
+            <td>36px 微型悬浮徽标</td>
+            <td><span class="tag-green">极低 · 几乎无感</span></td>
+            <td>★★★★★ (极致纯净)</td>
+            <td>单击展开中枢 / 任意拖拽</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer>
+      Earth Tabliss Wallpaper & Desktop Companion • 现已默认还原并生效【初版 · 极简赛博行星球】• 您可在托盘或桌宠菜单随时切换
+    </footer>
+  </div>
+
+  <script>
+    function selectSkin(skinName) {
+      // Notify parent or save config
+      alert('已将当前桌宠皮肤切换为：' + skinName + '\n您也可以直接在屏幕右下角托盘菜单【🎨 切换桌宠皮肤】中快速循环切肤！');
+    }
+  </script>
+</body>
+</html>

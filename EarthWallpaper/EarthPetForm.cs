@@ -111,7 +111,17 @@ namespace EarthWallpaper
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
-            Region = Region.FromHrgn(CreateEllipticRgn(0, 0, Width, Height));
+            using var path = new GraphicsPath();
+            path.AddEllipse(0, 0, Width, Height);
+            Region = new Region(path);
+
+            PetSkinManager.OnSkinChanged += () =>
+            {
+                if (IsHandleCreated && !IsDisposed)
+                {
+                    BeginInvoke(new Action(Invalidate));
+                }
+            };
         }
 
         public void NotifyLocationChanged(LocationInfo? loc)
@@ -257,6 +267,8 @@ namespace EarthWallpaper
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.InterpolationMode = InterpolationMode.HighQualityBicubic;
 
+            var skin = PetSkinManager.CurrentSkin;
+
             // 1. Cosmic Gradient Background
             using (var brush = new LinearGradientBrush(new Rectangle(0, 0, Width, Height),
                        Color.FromArgb(15, 23, 42), Color.FromArgb(2, 6, 23), 45f))
@@ -264,21 +276,27 @@ namespace EarthWallpaper
                 g.FillEllipse(brush, 1, 1, Width - 3, Height - 3);
             }
 
-            // 2. Cartoon Mascot Character (Rendered with high fidelity)
-            if (_mascotImage != null)
+            // 2. Render Based on Skin System
+            if (skin == PetSkin.ChibiEarth && _mascotImage != null)
             {
                 int pad = 5;
                 g.DrawImage(_mascotImage, pad, pad, Width - pad * 2, Height - pad * 2);
             }
-            else
+            else if (skin == PetSkin.HoloGlobe)
             {
-                // Fallback glyph
-                using var font = new Font("Segoe UI Emoji", 26f, FontStyle.Regular);
-                string icon = "🌍";
-                var size = g.MeasureString(icon, font);
-                float ix = (Width - size.Width) / 2f + 1;
-                float iy = (Height - size.Height) / 2f - 1;
-                g.DrawString(icon, font, Brushes.White, ix, iy);
+                DrawHoloWireframeGlobe(g);
+            }
+            else if (skin == PetSkin.PixelAstro)
+            {
+                DrawPixelAstro(g);
+            }
+            else if (skin == PetSkin.MiniPill)
+            {
+                DrawMiniPill(g);
+            }
+            else // Default: MinimalOrb (初版：极简天体光球)
+            {
+                DrawMinimalOrb(g);
             }
 
             // 3. Glowing Atmospheric Halo Ring
@@ -297,6 +315,75 @@ namespace EarthWallpaper
             {
                 g.DrawEllipse(dotRingPen, Width - 18, Height - 18, 8, 8);
             }
+        }
+
+        private void DrawMinimalOrb(Graphics g)
+        {
+            int cx = Width / 2;
+            int cy = Height / 2;
+            int r = Width / 2 - 10;
+
+            // Deep ocean base
+            using (var coreBrush = new SolidBrush(Color.FromArgb(8, 47, 73)))
+            {
+                g.FillEllipse(coreBrush, cx - r, cy - r, r * 2, r * 2);
+            }
+
+            // Stylized continent vectors
+            using (var landBrush = new SolidBrush(Color.FromArgb(16, 185, 129)))
+            {
+                g.FillEllipse(landBrush, cx - 12, cy - 14, 16, 14);
+                g.FillEllipse(landBrush, cx - 4, cy + 2, 14, 14);
+                g.FillEllipse(landBrush, cx + 6, cy - 8, 11, 11);
+            }
+
+            // Tilted equator line
+            using (var linePen = new Pen(Color.FromArgb(90, 56, 189, 248), 1.2f))
+            {
+                g.DrawArc(linePen, cx - r, cy - 8, r * 2, 16, 0, 180);
+            }
+
+            // Dotted orbital ring
+            using (var orbitPen = new Pen(Color.FromArgb(140, 241, 245, 249), 1.2f))
+            {
+                orbitPen.DashStyle = DashStyle.Dot;
+                g.DrawEllipse(orbitPen, cx - r - 4, cy - 7, (r + 4) * 2, 14);
+            }
+        }
+
+        private void DrawHoloWireframeGlobe(Graphics g)
+        {
+            int cx = Width / 2;
+            int cy = Height / 2;
+            int r = Width / 2 - 12;
+
+            using var pen = new Pen(Color.FromArgb(56, 189, 248), 1.2f);
+            g.DrawEllipse(pen, cx - r, cy - r, r * 2, r * 2);
+            g.DrawEllipse(pen, cx - r / 2, cy - r, r, r * 2);
+            g.DrawLine(pen, cx, cy - r, cx, cy + r);
+            g.DrawLine(pen, cx - r, cy, cx + r, cy);
+            g.DrawArc(pen, cx - r + 3, cy - r / 2, (r - 3) * 2, r, 0, 180);
+            g.DrawArc(pen, cx - r + 3, cy - r / 2 - 4, (r - 3) * 2, r, 180, 180);
+        }
+
+        private void DrawPixelAstro(Graphics g)
+        {
+            using var font = new Font("Segoe UI Emoji", 24f, FontStyle.Regular);
+            string icon = "👨‍🚀";
+            var size = g.MeasureString(icon, font);
+            g.DrawString(icon, font, Brushes.White, (Width - size.Width) / 2f + 1, (Height - size.Height) / 2f - 2);
+        }
+
+        private void DrawMiniPill(Graphics g)
+        {
+            int cx = Width / 2;
+            int cy = Height / 2;
+            using var b = new SolidBrush(Color.FromArgb(2, 132, 199));
+            g.FillEllipse(b, cx - 14, cy - 14, 28, 28);
+            using var p = new Pen(Color.White, 2f);
+            g.DrawEllipse(p, cx - 14, cy - 14, 28, 28);
+            using var font = new Font("Segoe UI", 8.5f, FontStyle.Bold);
+            g.DrawString("ET", font, Brushes.White, cx - 8, cy - 8);
         }
 
         protected override void Dispose(bool disposing)
