@@ -54,7 +54,7 @@ namespace EarthWallpaper
             StartPosition = FormStartPosition.Manual;
             TopMost = true;
             DoubleBuffered = true;
-            Size = new Size(680, 560);
+            Size = new Size(740, 580);
             BackColor = Color.FromArgb(15, 23, 42); // Slate 900
             ForeColor = Color.FromArgb(241, 245, 249);
 
@@ -83,18 +83,18 @@ namespace EarthWallpaper
                 AutoSize = true
             };
 
-            _btnTabAsk = CreateNavTab("💬 Ask Gemini 研判", 120, 10, true, (s, e) => SwitchTab(true));
-            _btnTabBookmarks = CreateNavTab("⭐ 地标收藏夹", 290, 10, false, (s, e) => SwitchTab(false));
+            _btnTabAsk = CreateNavTab("💬 Ask Gemini 研判", 138, 10, true, (s, e) => SwitchTab(true));
+            _btnTabBookmarks = CreateNavTab("⭐ 地标收藏夹", 304, 10, false, (s, e) => SwitchTab(false));
 
             var btnKey = new Button
             {
                 Text = "🔑 API 设置",
-                Font = new Font("Segoe UI", 8.5f, FontStyle.Regular),
+                Font = new Font("Segoe UI", 8.8f, FontStyle.Regular),
                 ForeColor = Color.FromArgb(148, 163, 184),
                 BackColor = Color.Transparent,
                 FlatStyle = FlatStyle.Flat,
-                Size = new Size(90, 30),
-                Location = new Point(Width - 146, 11),
+                Size = new Size(104, 30),
+                Location = new Point(Width - 160, 11),
                 Cursor = Cursors.Hand
             };
             btnKey.FlatAppearance.BorderColor = Color.FromArgb(71, 85, 105);
@@ -107,8 +107,8 @@ namespace EarthWallpaper
                 ForeColor = Color.FromArgb(148, 163, 184),
                 BackColor = Color.Transparent,
                 FlatStyle = FlatStyle.Flat,
-                Size = new Size(36, 32),
-                Location = new Point(Width - 46, 10),
+                Size = new Size(38, 30),
+                Location = new Point(Width - 48, 11),
                 Cursor = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderSize = 0;
@@ -160,7 +160,7 @@ namespace EarthWallpaper
             {
                 Text = text,
                 Location = new Point(x, y),
-                Size = new Size(160, 32),
+                Size = new Size(156, 32),
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 9.5f, isActive ? FontStyle.Bold : FontStyle.Regular),
                 ForeColor = isActive ? Color.White : Color.FromArgb(148, 163, 184),
@@ -224,7 +224,7 @@ namespace EarthWallpaper
                 ForeColor = isBookmarked ? Color.FromArgb(250, 204, 21) : Color.FromArgb(56, 189, 248),
                 BackColor = Color.FromArgb(30, 41, 59),
                 FlatStyle = FlatStyle.Flat,
-                Size = new Size(110, 28),
+                Size = new Size(116, 28),
                 Location = new Point(container.Width - 250, 8),
                 Cursor = Cursors.Hand
             };
@@ -238,17 +238,15 @@ namespace EarthWallpaper
                 ForeColor = Color.FromArgb(52, 211, 153),
                 BackColor = Color.FromArgb(30, 41, 59),
                 FlatStyle = FlatStyle.Flat,
-                Size = new Size(90, 28),
-                Location = new Point(container.Width - 130, 8),
+                Size = new Size(104, 28),
+                Location = new Point(container.Width - 120, 8),
                 Cursor = Cursors.Hand
             };
             btnOpenMap.FlatAppearance.BorderColor = Color.FromArgb(71, 85, 105);
             btnOpenMap.Click += (s, e) =>
             {
-                string targetUrl = !string.IsNullOrEmpty(_currentLoc.MapUrl)
-                    ? _currentLoc.MapUrl
-                    : $"https://earth.google.com/web/@{_currentLoc.Lat},{_currentLoc.Lng},1000a,35y,0h,0t,0r";
-                try { Process.Start(new ProcessStartInfo(targetUrl) { UseShellExecute = true }); } catch { }
+                string target = !string.IsNullOrEmpty(_currentLoc.MapUrl) ? _currentLoc.MapUrl : "https://earth.google.com/web/";
+                try { Process.Start(new ProcessStartInfo(target) { UseShellExecute = true }); } catch { }
             };
 
             pnlLocBar.Controls.Add(_lblTargetLoc);
@@ -256,51 +254,58 @@ namespace EarthWallpaper
             pnlLocBar.Controls.Add(btnOpenMap);
             container.Controls.Add(pnlLocBar);
 
-            // Chat History Area
+            // Chat History Panel
             _pnlChatHistory = new Panel
             {
-                Location = new Point(16, 52),
-                Size = new Size(container.Width - 32, container.Height - 160),
-                AutoScroll = true
+                Location = new Point(16, 48),
+                Size = new Size(container.Width - 32, container.Height - 152),
+                AutoScroll = true,
+                BackColor = Color.FromArgb(10, 15, 30),
+                Padding = new Padding(12)
             };
             container.Controls.Add(_pnlChatHistory);
 
-            // Add Welcome Message
-            AddChatBubble(false, $"你好！我是 Gemini 行星地貌研判助手 🛰️。\n" +
+            // Initial Welcome Bubble
+            AddChatBubble(false, $"欢迎进入行星地学研判室！\n" +
                                  $"当前视界锁定在 **{_currentLoc.GetDisplayName()}**。\n" +
                                  $"我可以为您解析此地的**地质断层演化、水系冲刷沉积机理、遥感物性特征**或推荐观测视角。您可以点击下方快捷问题或直接输入提问！");
 
-            // Quick Chips Panel
+            // Quick Chips Panel (AutoScroll false to eliminate native ugly scrollbar)
             _pnlQuickChips = new FlowLayoutPanel
             {
-                Location = new Point(16, container.Height - 100),
-                Size = new Size(container.Width - 32, 34),
+                Location = new Point(16, container.Height - 96),
+                Size = new Size(container.Width - 32, 32),
                 WrapContents = false,
-                AutoScroll = true
+                AutoScroll = false
             };
-            AddQuickChip("🌋 这片地质构造是如何形成的？");
-            AddQuickChip("🌊 分析该区域的水文冲蚀特征");
-            AddQuickChip("🛰️ 为什么卫星图呈现这种奇特色彩？");
-            AddQuickChip("🔍 附近有哪些地貌奇观？");
+            AddQuickChip("🌋 地质构造成因");
+            AddQuickChip("🌊 水文沉积演化");
+            AddQuickChip("🛰️ 遥感波段特征");
+            AddQuickChip("🔍 周边地貌奇观");
             container.Controls.Add(_pnlQuickChips);
 
             // Input Bar
             var pnlInputBar = new Panel
             {
-                Location = new Point(16, container.Height - 60),
-                Size = new Size(container.Width - 32, 42),
+                Location = new Point(16, container.Height - 56),
+                Size = new Size(container.Width - 32, 44),
                 BackColor = Color.FromArgb(30, 41, 59)
+            };
+            pnlInputBar.Paint += (s, e) =>
+            {
+                using var p = new Pen(Color.FromArgb(71, 85, 105), 1f);
+                e.Graphics.DrawRectangle(p, 0, 0, pnlInputBar.Width - 1, pnlInputBar.Height - 1);
             };
 
             _txtQuestion = new TextBox
             {
-                Location = new Point(12, 10),
-                Size = new Size(pnlInputBar.Width - 110, 24),
+                Location = new Point(14, 11),
+                Size = new Size(pnlInputBar.Width - 120, 24),
                 BackColor = Color.FromArgb(30, 41, 59),
                 ForeColor = Color.White,
                 BorderStyle = BorderStyle.None,
                 Font = new Font("Segoe UI", 10f, FontStyle.Regular),
-                PlaceholderText = "输入你想探究的地貌或地理问题..."
+                PlaceholderText = "输入您想研判的地貌机理或地理问题..."
             };
             _txtQuestion.KeyDown += (s, e) =>
             {
@@ -318,8 +323,8 @@ namespace EarthWallpaper
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(2, 132, 199),
                 FlatStyle = FlatStyle.Flat,
-                Size = new Size(84, 32),
-                Location = new Point(pnlInputBar.Width - 92, 5),
+                Size = new Size(90, 32),
+                Location = new Point(pnlInputBar.Width - 98, 6),
                 Cursor = Cursors.Hand
             };
             _btnSend.FlatAppearance.BorderSize = 0;
@@ -423,7 +428,6 @@ namespace EarthWallpaper
             int h = lblBody.PreferredHeight + 42;
             pnlBubble.Height = h;
 
-            // Position at bottom of history
             int y = 10;
             foreach (Control c in _pnlChatHistory.Controls)
             {
@@ -523,43 +527,44 @@ namespace EarthWallpaper
                 var pnlCard = new Panel
                 {
                     Width = _pnlBookmarksList.Width - 24,
-                    Height = 64,
+                    Height = 68,
                     BackColor = Color.FromArgb(30, 41, 59),
                     Margin = new Padding(0, 0, 0, 8),
-                    Padding = new Padding(12, 8, 12, 8)
+                    Padding = new Padding(14, 10, 14, 10)
                 };
 
                 var lblName = new Label
                 {
                     Text = $"📍 {item.GetDisplayName()}",
-                    Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
                     ForeColor = Color.White,
-                    Location = new Point(8, 10),
-                    AutoSize = true
+                    Location = new Point(10, 12),
+                    Size = new Size(pnlCard.Width - 280, 22),
+                    AutoEllipsis = true
                 };
 
                 var lblCoords = new Label
                 {
                     Text = $"坐标: {item.Lat}, {item.Lng} • 收藏于 {item.SavedAt:MM-dd HH:mm}",
-                    Font = new Font("Consolas", 8f, FontStyle.Regular),
+                    Font = new Font("Consolas", 8.5f, FontStyle.Regular),
                     ForeColor = Color.FromArgb(148, 163, 184),
-                    Location = new Point(10, 34),
+                    Location = new Point(12, 38),
                     AutoSize = true
                 };
 
-                // Action buttons on card
+                // Action buttons on card (Widened to 90px to prevent ANY text clipping)
                 var btnApply = new Button
                 {
                     Text = "设为壁纸",
-                    Font = new Font("Segoe UI", 8.5f, FontStyle.Regular),
+                    Font = new Font("Segoe UI", 9f, FontStyle.Regular),
                     ForeColor = Color.FromArgb(56, 189, 248),
                     BackColor = Color.FromArgb(15, 23, 42),
                     FlatStyle = FlatStyle.Flat,
-                    Size = new Size(72, 28),
-                    Location = new Point(pnlCard.Width - 270, 16),
+                    Size = new Size(92, 32),
+                    Location = new Point(pnlCard.Width - 248, 18),
                     Cursor = Cursors.Hand
                 };
-                btnApply.FlatAppearance.BorderSize = 0;
+                btnApply.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
                 btnApply.Click += (s, e) =>
                 {
                     _wallpaperForm.ApplyCustomWallpaper(new LocationInfo
@@ -577,15 +582,15 @@ namespace EarthWallpaper
                 var btnAskThis = new Button
                 {
                     Text = "向AI提问",
-                    Font = new Font("Segoe UI", 8.5f, FontStyle.Regular),
+                    Font = new Font("Segoe UI", 9f, FontStyle.Regular),
                     ForeColor = Color.FromArgb(165, 180, 252),
                     BackColor = Color.FromArgb(15, 23, 42),
                     FlatStyle = FlatStyle.Flat,
-                    Size = new Size(72, 28),
-                    Location = new Point(pnlCard.Width - 192, 16),
+                    Size = new Size(92, 32),
+                    Location = new Point(pnlCard.Width - 148, 18),
                     Cursor = Cursors.Hand
                 };
-                btnAskThis.FlatAppearance.BorderSize = 0;
+                btnAskThis.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
                 btnAskThis.Click += (s, e) =>
                 {
                     _currentLoc = new LocationInfo
@@ -605,12 +610,12 @@ namespace EarthWallpaper
                 var btnDelete = new Button
                 {
                     Text = "✕",
-                    Font = new Font("Segoe UI", 9f, FontStyle.Regular),
+                    Font = new Font("Segoe UI", 10f, FontStyle.Regular),
                     ForeColor = Color.FromArgb(248, 113, 113),
                     BackColor = Color.Transparent,
                     FlatStyle = FlatStyle.Flat,
-                    Size = new Size(32, 28),
-                    Location = new Point(pnlCard.Width - 42, 16),
+                    Size = new Size(34, 32),
+                    Location = new Point(pnlCard.Width - 46, 18),
                     Cursor = Cursors.Hand
                 };
                 btnDelete.FlatAppearance.BorderSize = 0;
@@ -632,29 +637,73 @@ namespace EarthWallpaper
 
         private void PromptApiKeySetting()
         {
-            string current = GeminiService.GetApiKey();
-            string input = Microsoft.VisualBasic.Interaction.InputBox(
-                "请输入您的 Google Gemini API Key（支持免费获取）：\n留空将继续使用内置高质量地貌推理引擎。",
-                "配置 Gemini API Key",
-                current
-            );
-            if (!string.IsNullOrEmpty(input) || input == "")
+            string currentKey = GeminiService.GetApiKey();
+            using var dlg = new Form
             {
-                GeminiService.SetApiKey(input);
-                MessageBox.Show(string.IsNullOrEmpty(input) ? "已重置为内置地貌推理模式。" : "Gemini API Key 已成功保存！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-        }
+                Text = "配置 Gemini API 密钥",
+                Size = new Size(460, 200),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                BackColor = Color.FromArgb(15, 23, 42),
+                ForeColor = Color.White
+            };
 
-        protected override void OnLoad(EventArgs e)
-        {
-            base.OnLoad(e);
-            Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, Width, Height, 16, 16));
+            var lblPrompt = new Label
+            {
+                Text = "请输入您的 Google AI Studio API 密钥：\n(可在 aistudio.google.com 免费获取)",
+                Location = new Point(20, 20),
+                Size = new Size(400, 36),
+                Font = new Font("Segoe UI", 9f)
+            };
+
+            var txtKey = new TextBox
+            {
+                Text = currentKey,
+                Location = new Point(20, 68),
+                Size = new Size(400, 24),
+                BackColor = Color.FromArgb(30, 41, 59),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9.5f)
+            };
+
+            var btnSave = new Button
+            {
+                Text = "保存密钥",
+                DialogResult = DialogResult.OK,
+                Location = new Point(230, 110),
+                Size = new Size(90, 32),
+                BackColor = Color.FromArgb(2, 132, 199),
+                FlatStyle = FlatStyle.Flat
+            };
+
+            var btnCancel = new Button
+            {
+                Text = "取消",
+                DialogResult = DialogResult.Cancel,
+                Location = new Point(330, 110),
+                Size = new Size(90, 32),
+                BackColor = Color.FromArgb(30, 41, 59),
+                FlatStyle = FlatStyle.Flat
+            };
+
+            dlg.Controls.Add(lblPrompt);
+            dlg.Controls.Add(txtKey);
+            dlg.Controls.Add(btnSave);
+            dlg.Controls.Add(btnCancel);
+
+            if (dlg.ShowDialog(this) == DialogResult.OK)
+            {
+                GeminiService.SetApiKey(txtKey.Text.Trim());
+                MessageBox.Show("Gemini API 密钥已保存！", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
 
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
-            using var pen = new Pen(Color.FromArgb(51, 65, 85), 1.5f);
+            using var pen = new Pen(Color.FromArgb(56, 189, 248), 1.5f);
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
         }
