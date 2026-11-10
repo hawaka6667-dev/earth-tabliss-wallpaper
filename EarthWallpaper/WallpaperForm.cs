@@ -222,6 +222,29 @@ namespace EarthWallpaper
             }
         }
 
+        public void ApplyCustomWallpaper(LocationInfo loc)
+        {
+            CurrentLocation = loc;
+            if (_webView != null && _webView.CoreWebView2 != null)
+            {
+                string payload = JsonSerializer.Serialize(new
+                {
+                    type = "set_custom_wallpaper",
+                    data = new
+                    {
+                        country = loc.Country,
+                        region = loc.Region,
+                        lat = loc.Lat,
+                        lng = loc.Lng,
+                        map = loc.MapUrl,
+                        image = loc.ImageUrl
+                    }
+                });
+                _webView.CoreWebView2.PostWebMessageAsJson(payload);
+            }
+            _petForm?.NotifyLocationChanged(loc);
+        }
+
         private void ExitApplication()
         {
             _powerGovernor?.Dispose();

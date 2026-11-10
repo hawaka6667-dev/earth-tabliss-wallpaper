@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
@@ -14,8 +15,9 @@ namespace EarthWallpaper
 
         private readonly WallpaperForm _wallpaperForm;
         private PetMenuForm? _menuForm;
-        private GeminiAnalysisForm? _geminiForm;
+        private GeminiHubForm? _hubForm;
         private ToolTip? _petTooltip;
+        private Image? _mascotImage;
 
         private bool _isMouseDown = false;
         private bool _isDragging = false;
@@ -27,6 +29,7 @@ namespace EarthWallpaper
         {
             _wallpaperForm = wallpaperForm;
             InitializeComponent();
+            LoadMascotImage();
         }
 
         private void InitializeComponent()
@@ -36,25 +39,26 @@ namespace EarthWallpaper
             FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.Manual;
-            TopMost = true;
+            // CRITICAL: TopMost = false so the pet ONLY floats on the desktop, never obstructing other apps
+            TopMost = false;
             DoubleBuffered = true;
-            Size = new Size(76, 76);
+            Size = new Size(82, 82);
             BackColor = Color.FromArgb(15, 23, 42); // Slate 900
             Cursor = Cursors.Hand;
 
-            // Position at bottom-right corner of work area, strictly above taskbar
+            // Position at bottom-right of work area, strictly above taskbar
             var workArea = Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1536, 816);
-            Location = new Point(workArea.Right - 100, workArea.Bottom - 140);
+            Location = new Point(workArea.Right - 110, workArea.Bottom - 140);
 
             _petTooltip = new ToolTip
             {
                 BackColor = Color.FromArgb(15, 23, 42),
                 ForeColor = Color.FromArgb(56, 189, 248),
                 InitialDelay = 400,
-                AutoPopDelay = 5000,
+                AutoPopDelay = 6000,
                 IsBalloon = true
             };
-            _petTooltip.SetToolTip(this, "🌍 小地球桌宠\n点击唤起控制中枢，拖动可自由漫游");
+            _petTooltip.SetToolTip(this, "🌍 小地球桌宠 (点击展开中枢，拖动自由漫游)\n⭐ 单击可收藏地标或与 Gemini 对话");
 
             MouseDown += OnPetMouseDown;
             MouseMove += OnPetMouseMove;
@@ -65,6 +69,43 @@ namespace EarthWallpaper
             ResumeLayout(false);
 
             _menuForm = new PetMenuForm(_wallpaperForm, this);
+        }
+
+        protected override CreateParams CreateParams
+        {
+            get
+            {
+                CreateParams cp = base.CreateParams;
+                cp.ExStyle |= 0x00000080; // WS_EX_TOOLWINDOW (prevents cluttering Alt+Tab)
+                return cp;
+            }
+        }
+
+        private void LoadMascotImage()
+        {
+            try
+            {
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string candidateA = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "app", "assets", "earth_pet.png"));
+                string candidateB = Path.GetFullPath(Path.Combine(baseDir, "app", "assets", "earth_pet.png"));
+                string candidateC = @"F:\antigravity\earth屏保\app\assets\earth_pet.png";
+
+                string target = "";
+                if (File.Exists(candidateA)) target = candidateA;
+                else if (File.Exists(candidateB)) target = candidateB;
+                else if (File.Exists(candidateC)) target = candidateC;
+
+                if (!string.IsNullOrEmpty(target))
+                {
+                    using var stream = new MemoryStream(File.ReadAllBytes(target));
+                    _mascotImage = Image.FromStream(stream);
+                    Program.Log($"EarthPetForm: Loaded cartoon mascot image from {target}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Program.Log($"EarthPetForm.LoadMascotImage error: {ex.Message}");
+            }
         }
 
         protected override void OnLoad(EventArgs e)
@@ -84,16 +125,14 @@ namespace EarthWallpaper
                 {
                     BeginInvoke(new Action(() =>
                     {
-                        _petTooltip?.Show($"🌍 漫游至新地标:\n{loc.GetDisplayName()}\n(点击桌宠查看地貌研判)", this, Width / 2, -50, 4000);
+                        string status = BookmarkManager.IsBookmarked(loc.Lat, loc.Lng) ? "★ 已在收藏夹" : "⭐ 未收藏";
+                        _petTooltip?.Show($"🌍 漫游至新地标:\n{loc.GetDisplayName()}\n[{status}] (点击桌宠可收藏/提问)", this, Width / 2, -60, 4500);
                     }));
                 }
             }
             catch { }
         }
 
-        // ==========================================
-        // Free Dragging - Strictly Clamped to WorkArea
-        // ==========================================
         private void OnPetMouseDown(object? sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
@@ -149,7 +188,6 @@ namespace EarthWallpaper
 
                 if (!wasDragging)
                 {
-                    // Clicked: Toggle Pet Menu
                     TogglePetMenu();
                 }
             }
@@ -175,11 +213,11 @@ namespace EarthWallpaper
             }
         }
 
-        public void OpenGeminiAnalysis()
+        public void OpenGeminiHub(bool openToBookmarks = false)
         {
-            if (_geminiForm != null && !_geminiForm.IsDisposed)
+            if (_hubForm != null && !_hubForm.IsDisposed)
             {
-                _geminiForm.BringToFront();
+                _hubForm.BringToFront();
                 return;
             }
 
@@ -191,8 +229,8 @@ namespace EarthWallpaper
                 Lng = "143.560709"
             };
 
-            _geminiForm = new GeminiAnalysisForm(loc);
-            _geminiForm.Show();
+            _hubForm = new GeminiHubForm(_wallpaperForm, loc, openToBookmarks);
+            _hubForm.Show();
         }
 
         public void OpenGoogleEarthMap()
@@ -217,37 +255,47 @@ namespace EarthWallpaper
             base.OnPaint(e);
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
 
-            // 1. Cosmic Deep Gradient Background
+            // 1. Cosmic Gradient Background
             using (var brush = new LinearGradientBrush(new Rectangle(0, 0, Width, Height),
-                       Color.FromArgb(10, 15, 30), Color.FromArgb(2, 6, 23), 45f))
+                       Color.FromArgb(15, 23, 42), Color.FromArgb(2, 6, 23), 45f))
             {
                 g.FillEllipse(brush, 1, 1, Width - 3, Height - 3);
             }
 
-            // 2. Glowing Atmosphere Ring
+            // 2. Cartoon Mascot Character (Rendered with high fidelity)
+            if (_mascotImage != null)
+            {
+                int pad = 5;
+                g.DrawImage(_mascotImage, pad, pad, Width - pad * 2, Height - pad * 2);
+            }
+            else
+            {
+                // Fallback glyph
+                using var font = new Font("Segoe UI Emoji", 26f, FontStyle.Regular);
+                string icon = "🌍";
+                var size = g.MeasureString(icon, font);
+                float ix = (Width - size.Width) / 2f + 1;
+                float iy = (Height - size.Height) / 2f - 1;
+                g.DrawString(icon, font, Brushes.White, ix, iy);
+            }
+
+            // 3. Glowing Atmospheric Halo Ring
             Color ringColor = _isHovered ? Color.FromArgb(56, 189, 248) : Color.FromArgb(14, 116, 144);
             using (var pen = new Pen(ringColor, _isHovered ? 2.5f : 1.8f))
             {
-                g.DrawEllipse(pen, 3, 3, Width - 7, Height - 7);
+                g.DrawEllipse(pen, 2, 2, Width - 5, Height - 5);
             }
-
-            // 3. Central Earth Mascot Icon (🌍)
-            using var font = new Font("Segoe UI Emoji", 24f, FontStyle.Regular);
-            string icon = "🌍";
-            var size = g.MeasureString(icon, font);
-            float ix = (Width - size.Width) / 2f + 1;
-            float iy = (Height - size.Height) / 2f - 1;
-            g.DrawString(icon, font, Brushes.White, ix, iy);
 
             // 4. Online Indicator Dot (Green pulse)
             using (var dotBrush = new SolidBrush(Color.FromArgb(34, 197, 94)))
             {
-                g.FillEllipse(dotBrush, Width - 20, Height - 20, 8, 8);
+                g.FillEllipse(dotBrush, Width - 18, Height - 18, 8, 8);
             }
             using (var dotRingPen = new Pen(Color.FromArgb(15, 23, 42), 1.5f))
             {
-                g.DrawEllipse(dotRingPen, Width - 20, Height - 20, 8, 8);
+                g.DrawEllipse(dotRingPen, Width - 18, Height - 18, 8, 8);
             }
         }
 
@@ -256,8 +304,9 @@ namespace EarthWallpaper
             if (disposing)
             {
                 _menuForm?.Dispose();
-                _geminiForm?.Dispose();
+                _hubForm?.Dispose();
                 _petTooltip?.Dispose();
+                _mascotImage?.Dispose();
             }
             base.Dispose(disposing);
         }

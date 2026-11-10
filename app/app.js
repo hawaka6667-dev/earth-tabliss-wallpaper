@@ -196,6 +196,32 @@
         toggleHud(msg.visible);
       } else if (msg.type === 'open_gemini') {
         openGemini();
+      } else if (msg.type === 'set_custom_wallpaper') {
+        const item = msg.data;
+        if (!item || !item.image) return;
+        state.currentLocation = item;
+        item.coords = { lat: item.lat, lng: item.lng };
+
+        state.isPreloading = true;
+        const preloader = new Image();
+        preloader.onload = () => {
+          el.country.textContent = item.country || '地球秘境';
+          el.region.textContent = item.region || '卫星高分地貌观测';
+          el.valLat.textContent = item.coords.lat;
+          el.valLng.textContent = item.coords.lng;
+
+          const targetLayer = state.activeLayer === 'a' ? el.bgB : el.bgA;
+          const oldLayer = state.activeLayer === 'a' ? el.bgA : el.bgB;
+
+          targetLayer.style.backgroundImage = `url("${item.image}")`;
+          targetLayer.classList.add('active');
+          oldLayer.classList.remove('active');
+
+          state.activeLayer = state.activeLayer === 'a' ? 'b' : 'a';
+          state.isPreloading = false;
+        };
+        preloader.onerror = () => { state.isPreloading = false; };
+        preloader.src = item.image;
       }
     });
   }

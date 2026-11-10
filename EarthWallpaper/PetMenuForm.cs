@@ -14,6 +14,7 @@ namespace EarthWallpaper
 
         private readonly WallpaperForm _wallpaperForm;
         private readonly EarthPetForm _petForm;
+        private Button? _btnBookmark;
         private Button? _btnIcons;
         private Label? _lblLoc;
         private bool _iconsVisible = true;
@@ -34,7 +35,7 @@ namespace EarthWallpaper
             StartPosition = FormStartPosition.Manual;
             TopMost = true;
             DoubleBuffered = true;
-            Size = new Size(280, 275);
+            Size = new Size(290, 320);
             BackColor = Color.FromArgb(15, 23, 42); // Slate 900
             ForeColor = Color.FromArgb(241, 245, 249);
 
@@ -79,20 +80,38 @@ namespace EarthWallpaper
                 Text = "📍 当前漫游: 澳大利亚 · 托雷斯海峡",
                 Font = new Font("Segoe UI", 9f, FontStyle.Regular),
                 ForeColor = Color.FromArgb(203, 213, 225),
-                Location = new Point(12, 48),
-                Size = new Size(256, 24),
+                Location = new Point(12, 46),
+                Size = new Size(266, 22),
                 AutoEllipsis = true
             };
             Controls.Add(_lblLoc);
 
             // 3. Action Buttons (Full width, NO truncation)
-            int btnY = 76;
-            const int btnHeight = 32;
-            const int btnSpacing = 6;
+            int btnY = 72;
+            const int btnHeight = 30;
+            const int btnSpacing = 5;
 
-            _btnIcons = CreateMenuButton("👁 显隐桌面图标 (当前: 显示)", 12, btnY, Color.FromArgb(56, 189, 248), OnToggleIcons);
+            // Bookmark Button
+            _btnBookmark = CreateMenuButton("⭐ 收藏当前地标", 12, btnY, Color.FromArgb(250, 204, 21), OnToggleBookmark);
             btnY += btnHeight + btnSpacing;
 
+            // View Bookmarks
+            var btnViewBookmarks = CreateMenuButton("📂 查看我的收藏夹", 12, btnY, Color.FromArgb(241, 245, 249), (s, e) =>
+            {
+                Hide();
+                _petForm.OpenGeminiHub(true);
+            });
+            btnY += btnHeight + btnSpacing;
+
+            // Ask Gemini Hub
+            var btnGemini = CreateMenuButton("💬 Ask Gemini 智能研判", 12, btnY, Color.FromArgb(165, 180, 252), (s, e) =>
+            {
+                Hide();
+                _petForm.OpenGeminiHub(false);
+            });
+            btnY += btnHeight + btnSpacing;
+
+            // Next Wallpaper
             var btnNext = CreateMenuButton("⏭ 换一张星球壁纸", 12, btnY, Color.FromArgb(241, 245, 249), (s, e) =>
             {
                 _wallpaperForm.SendWebMessage("next_wallpaper");
@@ -100,13 +119,11 @@ namespace EarthWallpaper
             });
             btnY += btnHeight + btnSpacing;
 
-            var btnGemini = CreateMenuButton("✨ Gemini 地貌深度研判", 12, btnY, Color.FromArgb(165, 180, 252), (s, e) =>
-            {
-                Hide();
-                _petForm.OpenGeminiAnalysis();
-            });
+            // Desktop Icons
+            _btnIcons = CreateMenuButton("👁 显隐桌面图标 (当前: 显示)", 12, btnY, Color.FromArgb(56, 189, 248), OnToggleIcons);
             btnY += btnHeight + btnSpacing;
 
+            // 3D Map
             var btnMap = CreateMenuButton("🌐 在 Google Earth 3D 查看", 12, btnY, Color.FromArgb(52, 211, 153), (s, e) =>
             {
                 Hide();
@@ -114,15 +131,18 @@ namespace EarthWallpaper
             });
             btnY += btnHeight + btnSpacing;
 
-            var btnExit = CreateMenuButton("🚪 退出 Earth Tabliss (恢复原壁纸)", 12, btnY, Color.FromArgb(248, 113, 113), (s, e) =>
+            // Exit
+            var btnExit = CreateMenuButton("🚪 退出壁纸与桌宠 (恢复原壁纸)", 12, btnY, Color.FromArgb(248, 113, 113), (s, e) =>
             {
                 DesktopWorker.RestoreOriginalWallpaper();
                 Application.Exit();
             });
 
-            Controls.Add(_btnIcons);
-            Controls.Add(btnNext);
+            Controls.Add(_btnBookmark);
+            Controls.Add(btnViewBookmarks);
             Controls.Add(btnGemini);
+            Controls.Add(btnNext);
+            Controls.Add(_btnIcons);
             Controls.Add(btnMap);
             Controls.Add(btnExit);
 
@@ -143,6 +163,13 @@ namespace EarthWallpaper
             {
                 _lblLoc.Text = $"📍 当前漫游: {loc.GetDisplayName()}";
             }
+
+            if (_btnBookmark != null && loc != null)
+            {
+                bool isBm = BookmarkManager.IsBookmarked(loc.Lat, loc.Lng);
+                _btnBookmark.Text = isBm ? "★ 已在收藏夹 (点击取消)" : "⭐ 收藏当前地标";
+                _btnBookmark.ForeColor = isBm ? Color.FromArgb(250, 204, 21) : Color.FromArgb(241, 245, 249);
+            }
         }
 
         private Button CreateMenuButton(string text, int x, int y, Color textColor, EventHandler onClick)
@@ -151,9 +178,9 @@ namespace EarthWallpaper
             {
                 Text = text,
                 Location = new Point(x, y),
-                Size = new Size(256, 32),
+                Size = new Size(266, 30),
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9f, FontStyle.Regular),
+                Font = new Font("Segoe UI", 8.8f, FontStyle.Regular),
                 ForeColor = textColor,
                 BackColor = Color.FromArgb(30, 41, 59),
                 TextAlign = ContentAlignment.MiddleLeft,
@@ -165,6 +192,19 @@ namespace EarthWallpaper
             btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(51, 65, 85);
             btn.Click += onClick;
             return btn;
+        }
+
+        private void OnToggleBookmark(object? sender, EventArgs e)
+        {
+            var loc = _wallpaperForm.CurrentLocation;
+            if (loc == null) return;
+
+            BookmarkManager.ToggleBookmark(loc, out bool nowBookmarked);
+            if (_btnBookmark != null)
+            {
+                _btnBookmark.Text = nowBookmarked ? "★ 已在收藏夹 (点击取消)" : "⭐ 收藏当前地标";
+                _btnBookmark.ForeColor = nowBookmarked ? Color.FromArgb(250, 204, 21) : Color.FromArgb(241, 245, 249);
+            }
         }
 
         private void OnToggleIcons(object? sender, EventArgs e)
@@ -182,17 +222,14 @@ namespace EarthWallpaper
         {
             var workArea = Screen.FromPoint(petLocation).WorkingArea;
 
-            // Preferred position: Above the pet
             int targetX = petLocation.X + (petSize.Width - Width) / 2;
             int targetY = petLocation.Y - Height - 10;
 
-            // If not enough room above, place below or to the side
             if (targetY < workArea.Top)
             {
                 targetY = petLocation.Y + petSize.Height + 10;
             }
 
-            // Strictly clamp to WorkingArea so it NEVER overlaps the taskbar
             int safeX = Math.Clamp(targetX, workArea.Left + 10, workArea.Right - Width - 10);
             int safeY = Math.Clamp(targetY, workArea.Top + 10, workArea.Bottom - Height - 10);
 
