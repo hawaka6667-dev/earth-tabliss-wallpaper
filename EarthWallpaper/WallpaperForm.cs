@@ -84,21 +84,22 @@ namespace EarthWallpaper
         protected override async void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
+            Program.Log("WallpaperForm.OnLoad started");
             await InitWebViewAsync();
 
-            // Attempt attaching to desktop WorkerW
+            Program.Log("InitWebViewAsync completed, attaching to desktop...");
             AttachToDesktopLayer();
 
-            // Initialize Power Governor
             _powerGovernor = new PowerGovernor(OnPowerStateChanged);
             _powerGovernor.Start();
+            Program.Log("PowerGovernor started");
         }
 
         private async Task InitWebViewAsync()
         {
             try
             {
-                // Resolve app directory
+                Program.Log("InitWebViewAsync: resolving app directory...");
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 string candidateA = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "app"));
                 string candidateB = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "app"));
@@ -109,19 +110,22 @@ namespace EarthWallpaper
                 else if (Directory.Exists(candidateC)) _appPath = candidateC;
                 else _appPath = Path.GetFullPath(@"F:\antigravity\earth屏保\app");
 
+                Program.Log($"InitWebViewAsync: _appPath = {_appPath}");
+
                 string userData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EarthWallpaper", "WebView2Data");
+                Program.Log($"InitWebViewAsync: userData = {userData}");
                 var env = await CoreWebView2Environment.CreateAsync(null, userData);
+                Program.Log("InitWebViewAsync: CoreWebView2Environment created");
 
                 if (_webView != null)
                 {
                     await _webView.EnsureCoreWebView2Async(env);
+                    Program.Log("InitWebViewAsync: EnsureCoreWebView2Async completed");
 
-                    // Disable standard browser context menu and accelerators that are unnecessary for wallpaper
                     _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
                     _webView.CoreWebView2.Settings.IsZoomControlEnabled = false;
-                    _webView.CoreWebView2.Settings.AreDevToolsEnabled = true; // Enabled for inspection
+                    _webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
 
-                    // Map virtual host name to local folder
                     _webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
                         "earthwallpaper.local",
                         _appPath,
@@ -129,12 +133,18 @@ namespace EarthWallpaper
                     );
 
                     _webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
+                    _webView.CoreWebView2.NavigationCompleted += (s, e) =>
+                    {
+                        Program.Log($"WebView2 NavigationCompleted: isSuccess={e.IsSuccess}, status={e.WebErrorStatus}");
+                    };
 
+                    Program.Log("InitWebViewAsync: Navigating to https://earthwallpaper.local/index.html");
                     _webView.CoreWebView2.Navigate("https://earthwallpaper.local/index.html");
                 }
             }
             catch (Exception ex)
             {
+                Program.Log($"InitWebViewAsync EXCEPTION: {ex.Message}\n{ex.StackTrace}");
                 MessageBox.Show($"WebView2 初始化异常: {ex.Message}", "Earth Tabliss 错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -144,7 +154,12 @@ namespace EarthWallpaper
             _isDesktopAttached = DesktopWorker.AttachToDesktop(Handle);
             if (!_isDesktopAttached)
             {
-                Debug.WriteLine("[WallpaperForm] Running in standalone borderless mode.");
+                Program.Log("[WallpaperForm] Failed to attach to WorkerW, falling back to visible windowed mode so user can see it.");
+                FormBorderStyle = FormBorderStyle.Sizable;
+                Bounds = new Rectangle(120, 120, 1366, 768);
+                StartPosition = FormStartPosition.CenterScreen;
+                ShowInTaskbar = true;
+                Visible = true;
             }
         }
 

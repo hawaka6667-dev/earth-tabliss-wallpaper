@@ -1,0 +1,16 @@
+# .NET build outputs
+[Bb]in/
+[Oo]bj/
+*.pdb
+*.user
+
+# Logs and runtime caches
+*.log
+debug.log
+.webview_data/
+WebView2Data/
+.vs/
+
+# OS / Temporary
+Thumbs.db
+.DS_Store
