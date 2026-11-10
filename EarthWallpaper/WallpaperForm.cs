@@ -61,13 +61,7 @@ namespace EarthWallpaper
             var itemBookmarks = new ToolStripMenuItem("⭐ 我的地标收藏夹", null, (s, e) => _petForm?.OpenGeminiHub(true));
             var itemGemini = new ToolStripMenuItem("✨ Ask Gemini 地貌研判", null, (s, e) => _petForm?.OpenGeminiHub(false));
             
-            var itemSkin = new ToolStripMenuItem($"🎨 切换桌宠皮肤 ({PetSkinManager.GetSkinDisplayName(PetSkinManager.CurrentSkin)})", null, (s, e) =>
-            {
-                PetSkinManager.CycleNextSkin();
-                (s as ToolStripMenuItem)!.Text = $"🎨 切换桌宠皮肤 ({PetSkinManager.GetSkinDisplayName(PetSkinManager.CurrentSkin)})";
-            });
-
-            var itemShowcase = new ToolStripMenuItem("📱 挑选桌宠方案 (HTML 交互预览)", null, (s, e) => OpenSkinShowcase());
+            var itemShowcase = new ToolStripMenuItem("📱 桌宠设计提案 (HTML 方案库)", null, (s, e) => OpenSkinShowcase());
             var itemReload = new ToolStripMenuItem("🔄 重载 / 重启应用 (Reload)", null, (s, e) => RestartApplication());
             var itemExit = new ToolStripMenuItem("🚪 退出 Earth Tabliss (恢复原壁纸)", null, (s, e) => ExitApplication());
 
@@ -77,7 +71,6 @@ namespace EarthWallpaper
                 new ToolStripSeparator(),
                 itemBookmarks,
                 itemGemini,
-                itemSkin,
                 itemShowcase,
                 new ToolStripSeparator(),
                 itemReload,

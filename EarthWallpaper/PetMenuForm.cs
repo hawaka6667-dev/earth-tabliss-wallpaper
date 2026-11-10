@@ -35,7 +35,7 @@ namespace EarthWallpaper
             StartPosition = FormStartPosition.Manual;
             TopMost = true;
             DoubleBuffered = true;
-            Size = new Size(290, 395);
+            Size = new Size(290, 360);
             BackColor = Color.FromArgb(15, 23, 42); // Slate 900
             ForeColor = Color.FromArgb(241, 245, 249);
 
@@ -111,18 +111,10 @@ namespace EarthWallpaper
             });
             btnY += btnHeight + btnSpacing;
 
-            // Skin Switcher
-            Button? btnSkin = null;
-            btnSkin = CreateMenuButton($"🎨 皮肤: {PetSkinManager.GetSkinDisplayName(PetSkinManager.CurrentSkin)}", 12, btnY, Color.FromArgb(244, 114, 182), (s, e) =>
-            {
-                PetSkinManager.CycleNextSkin();
-                if (btnSkin != null) btnSkin.Text = $"🎨 皮肤: {PetSkinManager.GetSkinDisplayName(PetSkinManager.CurrentSkin)}";
-            });
-            btnY += btnHeight + btnSpacing;
-
             // Skin Showcase HTML
-            var btnShowcase = CreateMenuButton("📱 挑选桌宠方案 (HTML 交互预览)", 12, btnY, Color.FromArgb(192, 132, 252), (s, e) =>
+            var btnShowcase = CreateMenuButton("📱 桌宠设计提案 (HTML 方案库)", 12, btnY, Color.FromArgb(192, 132, 252), (s, e) =>
             {
+                Hide();
                 _wallpaperForm.OpenSkinShowcase();
             });
             btnY += btnHeight + btnSpacing;
@@ -157,7 +149,6 @@ namespace EarthWallpaper
             Controls.Add(_btnBookmark);
             Controls.Add(btnViewBookmarks);
             Controls.Add(btnGemini);
-            Controls.Add(btnSkin);
             Controls.Add(btnShowcase);
             Controls.Add(btnNext);
             Controls.Add(_btnIcons);

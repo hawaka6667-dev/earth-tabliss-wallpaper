@@ -76,6 +76,8 @@ namespace EarthWallpaper
         public const int SM_CXVIRTUALSCREEN = 78;
         public const int SM_CYVIRTUALSCREEN = 79;
 
+        public const uint SWP_NOSIZE = 0x0001;
+        public const uint SWP_NOMOVE = 0x0002;
         public const uint SWP_NOZORDER = 0x0004;
         public const uint SWP_NOACTIVATE = 0x0010;
         public const uint SWP_SHOWWINDOW = 0x0040;
@@ -143,6 +145,35 @@ namespace EarthWallpaper
 
             Program.Log("[DesktopWorker] Failed to locate WorkerW.");
             return false;
+        }
+
+        public static bool AttachPetToDesktop(IntPtr petHandle)
+        {
+            try
+            {
+                IntPtr shellView = GetShellViewHandle();
+                Program.Log($"DesktopWorker: AttachPetToDesktop, shellView = {shellView}, petHandle = {petHandle}");
+                if (shellView == IntPtr.Zero)
+                {
+                    Program.Log("DesktopWorker: ShellView not found, falling back to floating toolwindow.");
+                    return false;
+                }
+
+                int style = GetWindowLong(petHandle, GWL_STYLE);
+                SetWindowLong(petHandle, GWL_STYLE, (style | WS_CHILD | WS_VISIBLE) & ~WS_POPUP);
+                SetParent(petHandle, shellView);
+
+                // Ensure it sits at the top among siblings inside SHELLDLL_DefView (above desktop icons)
+                SetWindowPos(petHandle, IntPtr.Zero, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+                ShowWindow(petHandle, 1);
+                Program.Log("DesktopWorker: Attached pet to SHELLDLL_DefView successfully.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Program.Log($"DesktopWorker.AttachPetToDesktop error: {ex.Message}");
+                return false;
+            }
         }
 
         public static IntPtr GetShellViewHandle()

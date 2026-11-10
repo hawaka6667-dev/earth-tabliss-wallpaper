@@ -3,15 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Earth Tabliss · 桌宠设计方案评审与交互选型</title>
+  <title>Earth Tabliss · 桌面宠物概念设计方案评审库</title>
   <style>
     :root {
       --bg: #030712;
-      --card-bg: rgba(15, 23, 42, 0.75);
-      --card-border: rgba(255, 255, 255, 0.1);
+      --card-bg: rgba(15, 23, 42, 0.85);
+      --card-border: rgba(255, 255, 255, 0.08);
       --primary: #38bdf8;
+      --accent: #818cf8;
       --success: #22c55e;
-      --accent: #a855f7;
+      --warning: #facc15;
+      --danger: #f87171;
       --text: #f8fafc;
       --text-muted: #94a3b8;
     }
@@ -24,19 +26,19 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
       background-color: var(--bg);
       background-image: 
-        radial-gradient(circle at 15% 20%, rgba(56, 189, 248, 0.12) 0%, transparent 40%),
-        radial-gradient(circle at 85% 80%, rgba(168, 85, 247, 0.12) 0%, transparent 40%);
+        radial-gradient(circle at 10% 15%, rgba(56, 189, 248, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 90% 85%, rgba(129, 140, 248, 0.12) 0%, transparent 40%);
       color: var(--text);
       min-height: 100vh;
-      padding: 40px 24px;
+      padding: 40px 24px 60px;
       line-height: 1.6;
     }
 
     .container {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 0 auto;
     }
 
@@ -46,60 +48,62 @@
     }
 
     header h1 {
-      font-size: 2.2rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
+      font-size: 2.4rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 12px;
+      letter-spacing: -0.02em;
     }
 
     header p {
       color: var(--text-muted);
-      font-size: 1rem;
-      max-width: 680px;
+      font-size: 1.05rem;
+      max-width: 780px;
       margin: 0 auto;
     }
 
-    .badge-bar {
+    .meta-bar {
       display: flex;
       justify-content: center;
+      flex-wrap: wrap;
       gap: 12px;
-      margin-top: 16px;
+      margin-top: 18px;
     }
 
-    .badge {
+    .pill {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.8rem;
+      padding: 5px 14px;
+      border-radius: 9999px;
+      font-size: 0.82rem;
       font-weight: 500;
-      background: rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.05);
       border: 1px solid var(--card-border);
       color: var(--text-muted);
     }
 
-    .badge.active {
-      background: rgba(56, 189, 248, 0.15);
-      border-color: rgba(56, 189, 248, 0.35);
+    .pill.active {
+      background: rgba(56, 189, 248, 0.12);
+      border-color: rgba(56, 189, 248, 0.3);
       color: var(--primary);
     }
 
-    /* Schemes Grid */
+    /* Grid of Schemes */
     .schemes-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 24px;
+      grid-template-columns: repeat(auto-fit, minmax(540px, 1fr));
+      gap: 28px;
       margin-bottom: 40px;
     }
 
     .scheme-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 18px;
-      padding: 24px;
+      border-radius: 20px;
+      padding: 28px;
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       display: flex;
@@ -110,104 +114,579 @@
 
     .scheme-card:hover {
       border-color: rgba(56, 189, 248, 0.4);
-      transform: translateY(-4px);
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
     }
 
-    .scheme-card.recommended {
-      border-color: rgba(56, 189, 248, 0.4);
-      box-shadow: 0 0 24px rgba(56, 189, 248, 0.15);
+    .scheme-card.featured {
+      border-color: rgba(56, 189, 248, 0.35);
+      box-shadow: 0 0 30px rgba(56, 189, 248, 0.12);
     }
 
-    .rec-tag {
+    .card-badge {
       position: absolute;
-      top: 16px;
-      right: 16px;
-      background: linear-gradient(135deg, #0284c7, #2563eb);
-      color: white;
-      font-size: 0.72rem;
-      font-weight: 600;
-      padding: 3px 8px;
+      top: 20px;
+      right: 20px;
+      padding: 4px 10px;
       border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
       letter-spacing: 0.05em;
     }
 
-    .pet-stage {
-      height: 140px;
-      background: radial-gradient(circle, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.95) 100%);
-      border: 1px dashed rgba(255, 255, 255, 0.12);
-      border-radius: 14px;
+    .badge-primary { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); }
+    .badge-success { background: rgba(34, 197, 94, 0.2); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.4); }
+    .badge-accent { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }
+    .badge-neutral { background: rgba(255, 255, 255, 0.1); color: #e2e8f0; border: 1px solid rgba(255, 255, 255, 0.2); }
+
+    .scheme-header {
+      margin-bottom: 20px;
+    }
+
+    .scheme-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .scheme-sub {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    /* Sandbox Interactive Stage */
+    .sandbox-stage {
+      height: 220px;
+      background: radial-gradient(circle, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.98) 100%);
+      border: 1px dashed rgba(255, 255, 255, 0.14);
+      border-radius: 16px;
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 20px;
-      position: relative;
       overflow: hidden;
+      margin-bottom: 16px;
       cursor: pointer;
     }
 
-    .pet-stage::after {
-      content: "悬停试玩 / 体验微动效";
+    .sandbox-hint {
       position: absolute;
-      bottom: 8px;
-      font-size: 0.7rem;
-      color: rgba(255, 255, 255, 0.3);
+      bottom: 10px;
+      font-size: 0.72rem;
+      color: rgba(255, 255, 255, 0.35);
+      pointer-events: none;
     }
 
-    /* Pet Mascot Visuals */
-    /* 1. Minimal Orb */
-    .pet-minimal-orb {
+    /* Speech Bubble */
+    .pet-bubble {
+      position: absolute;
+      top: 24px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #38bdf8;
+      color: #f8fafc;
+      padding: 6px 14px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      pointer-events: none;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+      opacity: 0;
+      transform: translateY(6px);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 10;
+      white-space: nowrap;
+    }
+
+    .pet-bubble::after {
+      content: "";
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 6px 6px 0;
+      border-style: solid;
+      border-color: #38bdf8 transparent transparent;
+    }
+
+    .pet-bubble.active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* State Controller Bar */
+    .state-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 20px;
+    }
+
+    .state-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .state-btn:hover, .state-btn.active {
+      background: rgba(56, 189, 248, 0.18);
+      border-color: rgba(56, 189, 248, 0.4);
+      color: #38bdf8;
+    }
+
+    /* Details Grid */
+    .details-box {
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 12px;
+      padding: 16px;
+      font-size: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex-grow: 1;
+    }
+
+    .detail-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .detail-label {
+      color: var(--text-muted);
+      font-weight: 500;
+      min-width: 76px;
+    }
+
+    .detail-val {
+      color: #e2e8f0;
+      text-align: right;
+    }
+
+    .detail-desc {
+      color: #cbd5e1;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      margin-top: 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 10px;
+    }
+
+    /* ========================================================
+       MASCOT 1: AETHER (星轨观察员 · 艾斯)
+       ======================================================== */
+    .mascot-aether {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* Idle Float Animation */
+    @keyframes aetherFloat {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-10px) rotate(2deg); }
+    }
+
+    @keyframes ringSpin {
+      0% { transform: rotate(0deg) scaleY(0.4); }
+      100% { transform: rotate(360deg) scaleY(0.4); }
+    }
+
+    @keyframes blinkEyes {
+      0%, 94%, 98%, 100% { transform: scaleY(1); }
+      96% { transform: scaleY(0.1); }
+    }
+
+    .mascot-aether.idle {
+      animation: aetherFloat 3.6s ease-in-out infinite;
+    }
+
+    .aether-body {
+      width: 72px;
+      height: 72px;
+      background: radial-gradient(circle at 35% 30%, #38bdf8 0%, #1e3a8a 70%, #0f172a 100%);
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.5), inset 0 0 12px rgba(255, 255, 255, 0.3);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+    }
+
+    /* Visor Face */
+    .aether-face {
+      width: 50px;
+      height: 38px;
+      background: #020617;
+      border-radius: 20px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      box-shadow: inset 0 0 8px rgba(56, 189, 248, 0.6);
+    }
+
+    .aether-eye {
+      width: 8px;
+      height: 12px;
+      background: #38bdf8;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #38bdf8;
+      animation: blinkEyes 4s infinite;
+    }
+
+    .aether-ear-l, .aether-ear-r {
+      position: absolute;
+      top: -8px;
+      width: 14px;
+      height: 18px;
+      background: #38bdf8;
+      border-radius: 50% 50% 0 0;
+      border: 2px solid rgba(255, 255, 255, 0.7);
+    }
+    .aether-ear-l { left: 10px; transform: rotate(-25deg); }
+    .aether-ear-r { right: 10px; transform: rotate(25deg); }
+
+    .aether-ring {
+      position: absolute;
+      width: 110px;
+      height: 110px;
+      border: 2px dashed rgba(56, 189, 248, 0.6);
+      border-radius: 50%;
+      animation: ringSpin 10s linear infinite;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .aether-sat {
+      position: absolute;
+      top: -4px;
+      left: 50%;
+      width: 8px;
+      height: 8px;
+      background: #facc15;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #facc15;
+    }
+
+    /* Aether Hover State */
+    .mascot-aether.hover {
+      transform: scale(1.12) translateY(-6px);
+    }
+    .mascot-aether.hover .aether-face {
+      background: #091e3a;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.8);
+    }
+    .mascot-aether.hover .aether-eye {
+      height: 14px;
+      background: #7dd3fc;
+      box-shadow: 0 0 12px #38bdf8;
+    }
+
+    /* Aether Poke State */
+    @keyframes spinPoke {
+      0% { transform: scale(0.9) rotate(0deg); }
+      50% { transform: scale(1.2) rotate(180deg); }
+      100% { transform: scale(1) rotate(360deg); }
+    }
+    .mascot-aether.poke {
+      animation: spinPoke 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* Aether Drag State */
+    @keyframes wiggleDrag {
+      0%, 100% { transform: rotate(-8deg) scale(0.95); }
+      50% { transform: rotate(8deg) scale(1.05); }
+    }
+    .mascot-aether.drag {
+      animation: wiggleDrag 0.3s ease-in-out infinite;
+      cursor: grabbing;
+    }
+
+    /* ========================================================
+       MASCOT 2: GAIA (地心原石 · 盖亚幼体)
+       ======================================================== */
+    .mascot-gaia {
+      position: relative;
+      width: 90px;
+      height: 90px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s ease;
+    }
+
+    @keyframes gaiaBreathe {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05) translateY(-4px); }
+    }
+
+    @keyframes sproutSway {
+      0%, 100% { transform: rotate(-10deg); }
+      50% { transform: rotate(10deg); }
+    }
+
+    .mascot-gaia.idle {
+      animation: gaiaBreathe 3s ease-in-out infinite;
+    }
+
+    .gaia-body {
+      width: 68px;
+      height: 68px;
+      background: radial-gradient(circle at 35% 35%, #0284c7 0%, #0369a1 40%, #0c4a6e 100%);
+      border-radius: 50%;
+      border: 2px solid #38bdf8;
+      box-shadow: 0 0 18px rgba(2, 132, 199, 0.5);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .gaia-land {
+      position: absolute;
+      background: #10b981;
+      border-radius: 50% 40% 60% 50%;
+      box-shadow: inset 0 0 4px rgba(0,0,0,0.3);
+    }
+    .gaia-land-1 { width: 30px; height: 26px; top: 12px; left: 8px; }
+    .gaia-land-2 { width: 24px; height: 28px; bottom: 8px; right: 10px; }
+
+    /* Sprout on Head */
+    .gaia-sprout {
+      position: absolute;
+      top: -14px;
+      left: 50%;
+      margin-left: -8px;
+      width: 16px;
+      height: 18px;
+      transform-origin: bottom center;
+      animation: sproutSway 2.4s ease-in-out infinite;
+      z-index: 5;
+    }
+    .gaia-leaf-l {
+      position: absolute;
+      left: 0;
+      top: 2px;
+      width: 9px;
+      height: 9px;
+      background: #22c55e;
+      border-radius: 10px 0;
+      transform: rotate(-30deg);
+    }
+    .gaia-leaf-r {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 9px;
+      height: 9px;
+      background: #4ade80;
+      border-radius: 0 10px;
+      transform: rotate(30deg);
+    }
+
+    /* Gaia Face */
+    .gaia-face {
+      position: absolute;
+      top: 24px;
+      display: flex;
+      gap: 16px;
+      z-index: 4;
+    }
+    .gaia-eye {
+      width: 6px;
+      height: 6px;
+      background: #f8fafc;
+      border-radius: 50%;
+      box-shadow: 0 0 4px rgba(0,0,0,0.6);
+      animation: blinkEyes 4.5s infinite;
+    }
+    .gaia-blush-l, .gaia-blush-r {
+      position: absolute;
+      top: 30px;
+      width: 8px;
+      height: 4px;
+      background: #f472b6;
+      border-radius: 50%;
+      opacity: 0.6;
+    }
+    .gaia-blush-l { left: 12px; }
+    .gaia-blush-r { right: 12px; }
+
+    /* Gaia States */
+    .mascot-gaia.hover {
+      transform: scale(1.12);
+    }
+    .mascot-gaia.hover .gaia-sprout {
+      transform: scale(1.3) rotate(0deg);
+    }
+
+    @keyframes gaiaJelly {
+      0% { transform: scale(1, 1); }
+      30% { transform: scale(1.25, 0.75); }
+      40% { transform: scale(0.75, 1.25); }
+      50% { transform: scale(1.15, 0.85); }
+      65% { transform: scale(0.95, 1.05); }
+      100% { transform: scale(1, 1); }
+    }
+    .mascot-gaia.poke {
+      animation: gaiaJelly 0.7s ease;
+    }
+
+    .mascot-gaia.drag {
+      transform: scale(0.85, 1.2) translateY(-8px);
+    }
+
+    /* ========================================================
+       MASCOT 3: ORB PROBE (深空全息探针 · O.R.B.)
+       ======================================================== */
+    .mascot-probe {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s ease;
+    }
+
+    @keyframes probeHover {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes irisPulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 10px #06b6d4; }
+      50% { transform: scale(0.85); box-shadow: 0 0 20px #22d3ee; }
+    }
+
+    .mascot-probe.idle {
+      animation: probeHover 2.8s ease-in-out infinite;
+    }
+
+    .probe-core {
+      width: 58px;
+      height: 58px;
+      background: #0f172a;
+      border: 2px solid #06b6d4;
+      border-radius: 12px;
+      transform: rotate(45deg);
+      box-shadow: 0 0 18px rgba(6, 182, 212, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .probe-eye {
+      width: 26px;
+      height: 26px;
+      background: #020617;
+      border: 2px solid #22d3ee;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: rotate(-45deg);
+    }
+
+    .probe-pupil {
+      width: 10px;
+      height: 10px;
+      background: #38bdf8;
+      border-radius: 50%;
+      animation: irisPulse 2.5s infinite;
+    }
+
+    .probe-wing-l, .probe-wing-r {
+      position: absolute;
+      width: 18px;
+      height: 38px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1.5px solid #06b6d4;
+      border-radius: 6px;
+      z-index: 1;
+      transition: all 0.3s ease;
+    }
+    .probe-wing-l { left: 4px; transform: rotate(-15deg); }
+    .probe-wing-r { right: 4px; transform: rotate(15deg); }
+
+    .probe-beam {
+      position: absolute;
+      bottom: -15px;
+      width: 40px;
+      height: 30px;
+      background: linear-gradient(to bottom, rgba(6, 182, 212, 0.3), transparent);
+      clip-path: polygon(30% 0%, 70% 0%, 100% 100%, 0% 100%);
+      opacity: 0.6;
+      animation: aetherFloat 2.8s infinite;
+    }
+
+    /* Probe States */
+    .mascot-probe.hover {
+      transform: scale(1.15);
+    }
+    .mascot-probe.hover .probe-wing-l { transform: translateX(-6px) rotate(-25deg); }
+    .mascot-probe.hover .probe-wing-r { transform: translateX(6px) rotate(25deg); }
+    .mascot-probe.hover .probe-beam { opacity: 0.9; height: 45px; }
+
+    @keyframes probeScan {
+      0% { transform: rotate(0deg); }
+      25% { transform: rotate(90deg); }
+      50% { transform: rotate(180deg); }
+      75% { transform: rotate(270deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .mascot-probe.poke .probe-core {
+      animation: probeScan 0.5s ease-out;
+    }
+
+    .mascot-probe.drag {
+      transform: rotate(20deg) scale(0.9);
+    }
+
+    /* ========================================================
+       MASCOT 4: CLASSIC INITIAL ORB (初版极简天体光球)
+       ======================================================== */
+    .mascot-classic {
+      position: relative;
       width: 76px;
       height: 76px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #082f49 0%, #030712 100%);
-      border: 2px solid #38bdf8;
-      box-shadow: 0 0 18px rgba(56, 189, 248, 0.35);
-      position: relative;
+      background: linear-gradient(135deg, #0a0f1e 0%, #020617 100%);
+      border: 2px solid #0e7490;
+      box-shadow: 0 0 16px rgba(14, 116, 144, 0.4);
       display: flex;
       align-items: center;
       justify-content: center;
       transition: all 0.3s ease;
     }
 
-    .pet-stage:hover .pet-minimal-orb {
-      transform: scale(1.08);
-      box-shadow: 0 0 28px rgba(56, 189, 248, 0.6);
+    .classic-icon {
+      font-size: 28px;
+      filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.6));
     }
 
-    .continent-1 {
-      position: absolute;
-      width: 24px;
-      height: 20px;
-      background: #10b981;
-      border-radius: 50% 60% 40% 70%;
-      top: 18px;
-      left: 18px;
-      opacity: 0.9;
-    }
-
-    .continent-2 {
-      position: absolute;
-      width: 18px;
-      height: 22px;
-      background: #10b981;
-      border-radius: 60% 40% 70% 50%;
-      bottom: 14px;
-      right: 20px;
-      opacity: 0.85;
-    }
-
-    .orbit-ring {
-      position: absolute;
-      width: 90px;
-      height: 28px;
-      border: 1px dashed rgba(241, 245, 249, 0.45);
-      border-radius: 50%;
-      transform: rotate(-25deg);
-      pointer-events: none;
-    }
-
-    .pulse-dot {
+    .classic-dot {
       position: absolute;
       bottom: 4px;
       right: 4px;
@@ -219,393 +698,331 @@
       box-shadow: 0 0 6px #22c55e;
     }
 
-    /* 2. Holo Wireframe */
-    .pet-holo-globe {
-      width: 76px;
-      height: 76px;
-      border-radius: 50%;
+    .mascot-classic.hover, .sandbox-stage:hover .mascot-classic {
+      border-color: #38bdf8;
+      box-shadow: 0 0 24px rgba(56, 189, 248, 0.7);
+      transform: scale(1.06);
+    }
+
+    /* Footer Action */
+    .action-card {
       background: rgba(15, 23, 42, 0.6);
-      border: 1.5px solid #06b6d4;
-      box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.3s ease;
-    }
-
-    .pet-stage:hover .pet-holo-globe {
-      transform: scale(1.08) rotate(15deg);
-      box-shadow: 0 0 30px rgba(6, 182, 212, 0.7);
-    }
-
-    .holo-grid {
-      width: 100%;
-      height: 100%;
-      position: absolute;
-      top: 0;
-      left: 0;
-    }
-
-    /* 3. Pixel Astro */
-    .pet-pixel-astro {
-      font-size: 2.6rem;
-      filter: drop-shadow(0 4px 12px rgba(168, 85, 247, 0.4));
-      transition: all 0.3s ease;
-      display: inline-block;
-    }
-
-    .pet-stage:hover .pet-pixel-astro {
-      transform: translateY(-8px) scale(1.1);
-      filter: drop-shadow(0 8px 18px rgba(168, 85, 247, 0.7));
-    }
-
-    /* 4. Kawaii Chibi Earth */
-    .pet-chibi-earth {
-      width: 78px;
-      height: 78px;
-      object-fit: contain;
-      filter: drop-shadow(0 4px 16px rgba(56, 189, 248, 0.4));
-      transition: all 0.3s ease;
-    }
-
-    .pet-stage:hover .pet-chibi-earth {
-      transform: scale(1.1) rotate(5deg);
-      filter: drop-shadow(0 6px 22px rgba(56, 189, 248, 0.65));
-    }
-
-    /* 5. Mini Pill */
-    .pet-mini-pill {
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      background: #0284c7;
-      border: 2px solid #ffffff;
-      box-shadow: 0 0 16px rgba(2, 132, 199, 0.6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: 0.75rem;
-      color: white;
-      transition: all 0.3s ease;
-    }
-
-    .pet-stage:hover .pet-mini-pill {
-      transform: scale(1.2);
-      box-shadow: 0 0 24px rgba(56, 189, 248, 0.8);
-    }
-
-    .scheme-title {
-      font-size: 1.2rem;
-      font-weight: 700;
-      color: #ffffff;
-      margin-bottom: 6px;
-    }
-
-    .scheme-desc {
-      font-size: 0.88rem;
-      color: var(--text-muted);
-      margin-bottom: 16px;
-      flex-grow: 1;
-    }
-
-    .specs-list {
-      list-style: none;
-      font-size: 0.8rem;
-      color: #cbd5e1;
-      background: rgba(0, 0, 0, 0.25);
-      border-radius: 10px;
-      padding: 10px 14px;
-      margin-bottom: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-
-    .specs-list li {
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .specs-label {
-      color: var(--text-muted);
-    }
-
-    .btn-apply {
-      width: 100%;
-      background: rgba(255, 255, 255, 0.08);
       border: 1px solid var(--card-border);
-      color: #ffffff;
-      padding: 10px 16px;
-      border-radius: 10px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-    }
-
-    .btn-apply:hover {
-      background: #0284c7;
-      border-color: #0284c7;
-      box-shadow: 0 4px 16px rgba(2, 132, 199, 0.4);
-    }
-
-    .btn-apply.active-btn {
-      background: rgba(34, 197, 94, 0.15);
-      border-color: rgba(34, 197, 94, 0.4);
-      color: var(--success);
-    }
-
-    /* Comparison Table */
-    .comparison-section {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 18px;
-      padding: 28px;
-      backdrop-filter: blur(16px);
-      margin-top: 32px;
-    }
-
-    .comparison-section h2 {
-      font-size: 1.35rem;
-      color: #ffffff;
-      margin-bottom: 16px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.88rem;
-      text-align: left;
-    }
-
-    th, td {
-      padding: 12px 14px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    th {
-      color: var(--text-muted);
-      font-weight: 600;
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    td {
-      color: #e2e8f0;
-    }
-
-    .tag-green {
-      color: #22c55e;
-      background: rgba(34, 197, 94, 0.1);
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.78rem;
-    }
-
-    .tag-blue {
-      color: #38bdf8;
-      background: rgba(56, 189, 248, 0.1);
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.78rem;
-    }
-
-    .tag-purple {
-      color: #c084fc;
-      background: rgba(192, 132, 252, 0.1);
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.78rem;
-    }
-
-    footer {
+      border-radius: 16px;
+      padding: 24px;
       text-align: center;
-      margin-top: 40px;
-      font-size: 0.82rem;
+      margin-top: 20px;
+    }
+
+    .action-card h3 {
+      font-size: 1.15rem;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .action-card p {
       color: var(--text-muted);
+      font-size: 0.9rem;
+      max-width: 600px;
+      margin: 0 auto;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>🌍 Earth Tabliss · 桌宠设计方案评审与交互选型</h1>
-      <p>为了让桌宠与您的桌面环境、壁纸质感及日常工作流达成完美平衡，我们梳理并实现了 5 套不同维度的设计方案。您可以在下方直接试玩、比较，并在中枢菜单中一键切换！</p>
-      <div class="badge-bar">
-        <span class="badge active">🖥️ 桌面层停靠 (不遮挡工作软件)</span>
-        <span class="badge active">⚡ 0.0% 闲置开销</span>
-        <span class="badge active">🚀 物理避让任务栏</span>
-      </div>
-    </header>
 
-    <div class="schemes-grid">
-      <!-- Scheme 1: Minimal Orb (Initial Version) -->
-      <div class="scheme-card recommended">
-        <span class="rec-tag">初版还原 · 推荐</span>
-        <div class="pet-stage">
-          <div class="pet-minimal-orb">
-            <div class="continent-1"></div>
-            <div class="continent-2"></div>
-            <div class="orbit-ring"></div>
-            <div class="pulse-dot"></div>
+<div class="container">
+  <header>
+    <h1>Earth Tabliss · 桌面宠物概念设计方案库</h1>
+    <p>为 Google Earth 卫星地貌壁纸深度定制的互动伴侣方案。点击任意方案舞台中的微动效控制器，体验待机、注视、戳击与拖拽反应。</p>
+    
+    <div class="meta-bar">
+      <span class="pill active">💡 纯 HTML 评审原型 (未篡改本地软件)</span>
+      <span class="pill">⚙️ 软件实机：严格运行 Git 初版 (76px 经典天体球)</span>
+      <span class="pill">🛡️ 已修复：Win+D (Show Desktop) 穿透与层级冲突</span>
+      <span class="pill">⚡ GPU 零开销动画规范 (0% CPU 占用)</span>
+    </div>
+  </header>
+
+  <div class="schemes-grid">
+
+    <!-- SCHEME 1: AETHER -->
+    <div class="scheme-card featured">
+      <span class="card-badge badge-primary">方案一 · 人气推荐</span>
+      
+      <div class="scheme-header">
+        <h2 class="scheme-title">🪐 星轨观察员 · 艾斯 (Aether)</h2>
+        <p class="scheme-sub">治愈系微型天体宇航伴侣 · 科技温情与萌系探索</p>
+      </div>
+
+      <div class="sandbox-stage" id="stage-aether">
+        <div class="pet-bubble" id="bubble-aether">嗨！已锁定新地标，要向 Gemini 提问吗？ ✨</div>
+        <div class="mascot-aether idle" id="mascot-aether">
+          <div class="aether-ring">
+            <div class="aether-sat"></div>
+          </div>
+          <div class="aether-ear-l"></div>
+          <div class="aether-ear-r"></div>
+          <div class="aether-body">
+            <div class="aether-face">
+              <div class="aether-eye"></div>
+              <div class="aether-eye"></div>
+            </div>
           </div>
         </div>
-        <h3 class="scheme-title">1. 初版 · 极简赛博行星球</h3>
-        <p class="scheme-desc">还原最初版设计的克制美学。深空午夜蓝核底盘、翡翠绿矢量陆块几何、微光天体轨道环与在线脉冲点。零视觉光污染，与严肃代码及办公桌面浑然一体。</p>
-        <ul class="specs-list">
-          <li><span class="specs-label">视觉风格:</span> <span>Tabliss 极简科技 / 深空冷调</span></li>
-          <li><span class="specs-label">桌面侵入度:</span> <span class="tag-green">极低 (72px 圆形微光)</span></li>
-          <li><span class="specs-label">渲染开销:</span> <span class="tag-green">0.00% CPU (GDI+ 矢量)</span></li>
-          <li><span class="specs-label">适合场景:</span> <span>沉浸编码、专注工作、不喜花哨</span></li>
-        </ul>
-        <button class="btn-apply active-btn" onclick="selectSkin('MinimalOrb')">✔ 当前生效皮肤 (初版推荐)</button>
+        <div class="sandbox-hint">悬停探视 / 点击戳一戳</div>
       </div>
 
-      <!-- Scheme 2: Holo Wireframe Globe -->
-      <div class="scheme-card">
-        <div class="pet-stage">
-          <div class="pet-holo-globe">
-            <svg class="holo-grid" viewBox="0 0 76 76" fill="none" stroke="#06b6d4" stroke-width="1.2">
-              <circle cx="38" cy="38" r="30" stroke-opacity="0.8"/>
-              <ellipse cx="38" cy="38" rx="15" ry="30" stroke-opacity="0.6"/>
-              <line x1="38" y1="8" x2="38" y2="68" stroke-opacity="0.6"/>
-              <line x1="8" y1="38" x2="68" y2="38" stroke-opacity="0.6"/>
-              <ellipse cx="38" cy="24" rx="24" ry="10" stroke-opacity="0.5"/>
-              <ellipse cx="38" cy="52" rx="24" ry="10" stroke-opacity="0.5"/>
-            </svg>
-            <div class="pulse-dot" style="background:#06b6d4; box-shadow:0 0 6px #06b6d4;"></div>
-          </div>
-        </div>
-        <h3 class="scheme-title">2. 全息 · 经纬网格雷达球</h3>
-        <p class="scheme-desc">灵感来自深空科研终端。通透微光全息经纬线构形，倾斜 23.5° 地球自转轴网格，犹如科幻空间站桌面上的微型行星全息投影。</p>
-        <ul class="specs-list">
-          <li><span class="specs-label">视觉风格:</span> <span>科幻终端 / 赛博全息线框</span></li>
-          <li><span class="specs-label">桌面侵入度:</span> <span class="tag-green">极低 (高透光感)</span></li>
-          <li><span class="specs-label">渲染开销:</span> <span class="tag-green">0.00% CPU</span></li>
-          <li><span class="specs-label">适合场景:</span> <span>赛博朋克壁纸搭配、极客极简</span></li>
-        </ul>
-        <button class="btn-apply" onclick="selectSkin('HoloGlobe')">一键切换为此方案</button>
+      <div class="state-bar">
+        <button class="state-btn active" onclick="setAetherState('idle', '在近地轨道静静漂浮，偶尔眨眼打哈欠...')">待机 (Idle)</button>
+        <button class="state-btn" onclick="setAetherState('hover', '发现光标接近！双眼发亮，身体前倾好奇注视 ✨')">悬停 (Hover)</button>
+        <button class="state-btn" onclick="setAetherState('poke', '转体 360° 比出剪刀手！呼出控制中枢 🚀')">戳一戳 (Poke)</button>
+        <button class="state-btn" onclick="setAetherState('drag', '四肢小手小脚晃悠扑腾，被你拎着看风景 🐾')">拖拽 (Drag)</button>
+        <button class="state-btn" onclick="setAetherState('alert', '咔嚓！掏出迷你拍立得记录下这片美丽地貌 📸')">新地标 (Alert)</button>
       </div>
 
-      <!-- Scheme 3: Pixel Astro Explorer -->
-      <div class="scheme-card">
-        <div class="pet-stage">
-          <div class="pet-pixel-astro">👨‍🚀</div>
+      <div class="details-box">
+        <div class="detail-item">
+          <span class="detail-label">角色人设</span>
+          <span class="detail-val">近地科研卫星的微型 AI 领航员，热衷搜集地球奇特地质</span>
         </div>
-        <h3 class="scheme-title">3. 像素 · 复古 8-Bit 漫游者</h3>
-        <p class="scheme-desc">经典复古点阵宇航员。带着太空面罩在你的桌面上漂浮漫步，偶尔摆动，带来恰到好处的复古游戏情怀与陪伴温度。</p>
-        <ul class="specs-list">
-          <li><span class="specs-label">视觉风格:</span> <span>8-Bit 复古点阵 / 像素怀旧</span></li>
-          <li><span class="specs-label">桌面侵入度:</span> <span class="tag-blue">低 (轻量趣味)</span></li>
-          <li><span class="specs-label">渲染开销:</span> <span class="tag-green">0.00% CPU</span></li>
-          <li><span class="specs-label">适合场景:</span> <span>独立开发者、复古游戏爱好者</span></li>
-        </ul>
-        <button class="btn-apply" onclick="selectSkin('PixelAstro')">一键切换为此方案</button>
-      </div>
-
-      <!-- Scheme 4: Kawaii Chibi Earth -->
-      <div class="scheme-card">
-        <div class="pet-stage">
-          <img src="assets/earth_pet.png" class="pet-chibi-earth" alt="Chibi Earth Mascot" onerror="this.src='https://api.iconify.design/noto:globe-showing-americas.svg'">
+        <div class="detail-item">
+          <span class="detail-label">壁纸联动</span>
+          <span class="detail-val">换壁纸时相机咔嚓闪光；遇到环礁/火山口主动弹出发光气泡</span>
         </div>
-        <h3 class="scheme-title">4. 萌系 · Q 版治愈小地球</h3>
-        <p class="scheme-desc">水灵灵的大眼睛、温柔微笑与粉嫩腮红，头顶漂浮微型轨道。给严肃的屏幕增添一丝生机与灵动的治愈感。</p>
-        <ul class="specs-list">
-          <li><span class="specs-label">视觉风格:</span> <span>二次元卡通 / 治愈萌系贴纸</span></li>
-          <li><span class="specs-label">桌面侵入度:</span> <span class="tag-purple">中 (形象生动)</span></li>
-          <li><span class="specs-label">渲染开销:</span> <span class="tag-green">0.00% CPU</span></li>
-          <li><span class="specs-label">适合场景:</span> <span>喜欢生动桌宠形象、治愈陪伴</span></li>
-        </ul>
-        <button class="btn-apply" onclick="selectSkin('ChibiEarth')">一键切换为此方案</button>
-      </div>
-
-      <!-- Scheme 5: Dynamic Micro Capsule -->
-      <div class="scheme-card">
-        <div class="pet-stage">
-          <div class="pet-mini-pill">ET</div>
+        <div class="detail-item">
+          <span class="detail-label">动效规格</span>
+          <span class="detail-val">纯 SVG + CSS 合成层变换，常驻 0 FPS，互动时瞬时 60 FPS</span>
         </div>
-        <h3 class="scheme-title">5. 微型 · 动态极简胶囊</h3>
-        <p class="scheme-desc">仅 36px 直径的微型悬浮印记。常态下视线占用率小于 0.05%，完全不抢壁纸任何风头；点击时轻灵展开全功能中枢面板。</p>
-        <ul class="specs-list">
-          <li><span class="specs-label">视觉风格:</span> <span>极简微型徽标 / 工业设计感</span></li>
-          <li><span class="specs-label">桌面侵入度:</span> <span class="tag-green">极致微小 (36px)</span></li>
-          <li><span class="specs-label">渲染开销:</span> <span class="tag-green">0.00% CPU</span></li>
-          <li><span class="specs-label">适合场景:</span> <span>对桌面纯净度有极致强迫症的用户</span></li>
-        </ul>
-        <button class="btn-apply" onclick="selectSkin('MiniPill')">一键切换为此方案</button>
+        <p class="detail-desc">
+          <b>设计解构</b>：圆润深蓝透明气泡头盔兼具未来感与亲和力，金色卫星沿着轨道自转，完美衬托 Earth Tabliss 的天文摄影质感，绝不显粗糙幼稚。
+        </p>
       </div>
     </div>
 
-    <!-- Comparison Table -->
-    <div class="comparison-section">
-      <h2>📊 5 套桌宠方案横向对比矩阵</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>方案名称</th>
-            <th>设计语言</th>
-            <th>桌面存在感</th>
-            <th>与壁纸融合度</th>
-            <th>操作方式</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>1. 初版 · 极简赛博天体</strong></td>
-            <td>Tabliss 极简冷调 + 矢量天体</td>
-            <td><span class="tag-green">低侵入 · 自然融合</span></td>
-            <td>★★★★★ (100% 契合卫星地貌)</td>
-            <td>单击展开中枢 / 任意拖拽</td>
-          </tr>
-          <tr>
-            <td><strong>2. 全息 · 经纬网格球</strong></td>
-            <td>科幻科研终端 + 旋转经纬线</td>
-            <td><span class="tag-green">低侵入 · 通透悬浮</span></td>
-            <td>★★★★★ (极客科技感)</td>
-            <td>单击展开中枢 / 任意拖拽</td>
-          </tr>
-          <tr>
-            <td><strong>3. 像素 · 复古宇航员</strong></td>
-            <td>8-Bit 像素怀旧</td>
-            <td><span class="tag-blue">中等 · 趣味点缀</span></td>
-            <td>★★★★☆ (轻量趣味)</td>
-            <td>单击展开中枢 / 任意拖拽</td>
-          </tr>
-          <tr>
-            <td><strong>4. 萌系 · Q 版小地球</strong></td>
-            <td>二次元萌宠贴纸</td>
-            <td><span class="tag-purple">显眼 · 活泼灵动</span></td>
-            <td>★★★☆☆ (个性化萌系)</td>
-            <td>单击展开中枢 / 任意拖拽</td>
-          </tr>
-          <tr>
-            <td><strong>5. 微型 · 极简胶囊</strong></td>
-            <td>36px 微型悬浮徽标</td>
-            <td><span class="tag-green">极低 · 几乎无感</span></td>
-            <td>★★★★★ (极致纯净)</td>
-            <td>单击展开中枢 / 任意拖拽</td>
-          </tr>
-        </tbody>
-      </table>
+    <!-- SCHEME 2: GAIA -->
+    <div class="scheme-card">
+      <span class="card-badge badge-success">方案二 · 治愈生态</span>
+      
+      <div class="scheme-header">
+        <h2 class="scheme-title">🌱 地心幼体 · 盖亚 (Gaia Core)</h2>
+        <p class="scheme-sub">活体行星微生态拟人 · 充满灵性的蓝色水球精灵</p>
+      </div>
+
+      <div class="sandbox-stage" id="stage-gaia">
+        <div class="pet-bubble" id="bubble-gaia">咕噜咕噜~ 这里的海水是青绿色的！ 🌊</div>
+        <div class="mascot-gaia idle" id="mascot-gaia">
+          <div class="gaia-sprout">
+            <div class="gaia-leaf-l"></div>
+            <div class="gaia-leaf-r"></div>
+          </div>
+          <div class="gaia-body">
+            <div class="gaia-land gaia-land-1"></div>
+            <div class="gaia-land gaia-land-2"></div>
+            <div class="gaia-face">
+              <div class="gaia-eye"></div>
+              <div class="gaia-eye"></div>
+            </div>
+            <div class="gaia-blush-l"></div>
+            <div class="gaia-blush-r"></div>
+          </div>
+        </div>
+        <div class="sandbox-hint">悬停探视 / 点击戳一戳</div>
+      </div>
+
+      <div class="state-bar">
+        <button class="state-btn active" onclick="setGaiaState('idle', '微型活体水球轻轻呼吸起伏，头顶小嫩芽摇曳...')">待机 (Idle)</button>
+        <button class="state-btn" onclick="setGaiaState('hover', '小绿芽欢快直立，身旁泛起青翠荧光脉冲 🍃')">悬停 (Hover)</button>
+        <button class="state-btn" onclick="setGaiaState('poke', 'Q 弹果冻形变回弹，头顶噗地绽开一朵发光小花 🌸')">戳一戳 (Poke)</button>
+        <button class="state-btn" onclick="setGaiaState('drag', '像被水滴提拉一样产生流体阻尼拉伸 💧')">拖拽 (Drag)</button>
+        <button class="state-btn" onclick="setGaiaState('alert', '遇到干旱沙漠地貌，头顶小云朵下起微雨滋润 🌧️')">气候联动 (Alert)</button>
+      </div>
+
+      <div class="details-box">
+        <div class="detail-item">
+          <span class="detail-label">角色人设</span>
+          <span class="detail-val">地球生物圈的幼态意志，体温与呼吸随真实卫星天气变化</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">壁纸联动</span>
+          <span class="detail-val">极地地貌会冷得打喷嚏；植被茂盛地貌开出嫩叶</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">动效规格</span>
+          <span class="detail-val">流体 Q 弹缓动补间，低饱和莫兰迪蓝绿护眼配色</span>
+        </div>
+        <p class="detail-desc">
+          <b>设计解构</b>：抛弃机械生硬感，采用水球果冻质感与植物萌芽，将冷冰冰的卫星图赋予生命的温热感，是极佳的陪伴型桌面物种。
+        </p>
+      </div>
     </div>
 
-    <footer>
-      Earth Tabliss Wallpaper & Desktop Companion • 现已默认还原并生效【初版 · 极简赛博行星球】• 您可在托盘或桌宠菜单随时切换
-    </footer>
+    <!-- SCHEME 3: ORB PROBE -->
+    <div class="scheme-card">
+      <span class="card-badge badge-accent">方案三 · 极客赛博</span>
+      
+      <div class="scheme-header">
+        <h2 class="scheme-title">🛰️ 轨道测绘机 · O.R.B. (Probe)</h2>
+        <p class="scheme-sub">深空低多边形悬浮探测器 · 硬核工业与全息投影</p>
+      </div>
+
+      <div class="sandbox-stage" id="stage-probe">
+        <div class="pet-bubble" id="bubble-probe">[SCAN] 经纬网格解析完成，等高线数据已就绪。</div>
+        <div class="mascot-probe idle" id="mascot-probe">
+          <div class="probe-wing-l"></div>
+          <div class="probe-wing-r"></div>
+          <div class="probe-core">
+            <div class="probe-eye">
+              <div class="probe-pupil"></div>
+            </div>
+          </div>
+          <div class="probe-beam"></div>
+        </div>
+        <div class="sandbox-hint">悬停探视 / 点击戳一戳</div>
+      </div>
+
+      <div class="state-bar">
+        <button class="state-btn active" onclick="setProbeState('idle', '微型等离子浮游微振，激光镜头呼吸式变焦...')">待机 (Idle)</button>
+        <button class="state-btn" onclick="setProbeState('hover', '浮游翼展开为巡弋姿态，投射全息雷达网格 📐')">悬停 (Hover)</button>
+        <button class="state-btn" onclick="setProbeState('poke', '机械核心咔哒旋转展开，镜头蓝光聚焦唤醒 AI 研判 ⚡')">戳一戳 (Poke)</button>
+        <button class="state-btn" onclick="setProbeState('drag', '尾部亮起蓝色等离子微火推进器，保持姿态平衡 🛸')">拖拽 (Drag)</button>
+        <button class="state-btn" onclick="setProbeState('alert', '向壁纸投射出扇形等高线扫描光束，输出遥感参数 📡')">地貌测绘 (Alert)</button>
+      </div>
+
+      <div class="details-box">
+        <div class="detail-item">
+          <span class="detail-label">角色人设</span>
+          <span class="detail-val">地球遥感测量卫星终端机，严谨冷静的高维分析仪器</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">壁纸联动</span>
+          <span class="detail-val">配合 Gemini 分析时发出电平信号波形，自动提取色彩直方图</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">动效规格</span>
+          <span class="detail-val">机械卡扣变换，霓虹青与暗夜黑硬派科幻风格</span>
+        </div>
+        <p class="detail-desc">
+          <b>设计解构</b>：完全不走常规可爱路线，专注于“桌面专业科研仪器”的气质，非常适合程序员、地理爱好者与硬核科幻迷。
+        </p>
+      </div>
+    </div>
+
+    <!-- SCHEME 4: CLASSIC VECTOR ORB -->
+    <div class="scheme-card">
+      <span class="card-badge badge-neutral">方案四 · 纯粹基准 (当前实机)</span>
+      
+      <div class="scheme-header">
+        <h2 class="scheme-title">🌍 经典天体核心 · 初版 (Classic Orb)</h2>
+        <p class="scheme-sub">已在实机恢复运行 · 零干扰极简纯粹对照组</p>
+      </div>
+
+      <div class="sandbox-stage" id="stage-classic">
+        <div class="pet-bubble" id="bubble-classic">初版稳定就绪 · 纯粹经典天体</div>
+        <div class="mascot-classic idle" id="mascot-classic">
+          <div class="classic-icon">🌍</div>
+          <div class="classic-dot"></div>
+        </div>
+        <div class="sandbox-hint">悬停探视 / 点击戳一戳</div>
+      </div>
+
+      <div class="state-bar">
+        <button class="state-btn active" onclick="setClassicState('idle', '深邃宇宙天体渐变底座，稳定静置在桌面最底层...')">待机 (Idle)</button>
+        <button class="state-btn" onclick="setClassicState('hover', '边缘霓虹天青光环柔和加亮，微缩气泡提示地标 💡')">悬停 (Hover)</button>
+        <button class="state-btn" onclick="setClassicState('poke', '立即展开半透明控制中枢 (收藏/Gemini/换壁纸) 📋')">戳一戳 (Poke)</button>
+      </div>
+
+      <div class="details-box">
+        <div class="detail-item">
+          <span class="detail-label">角色人设</span>
+          <span class="detail-val">无拟人实体，纯粹的桌面沉浸式多功能控制台核心</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">系统层级</span>
+          <span class="detail-val">已锁定 SHELLDLL_DefView，完美兼容 Win+D 与多任务切换</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">性能开销</span>
+          <span class="detail-val">绝对 0 FPS 极速渲染，内存仅 ~50MB，CPU 长期 0.0%</span>
+        </div>
+        <p class="detail-desc">
+          <b>设计解构</b>：代码已严格回退至 Git 初始提交（Commit 021c831），修复了高 DPI 椭圆畸变，若您更偏好纯粹工具属性，可直接长期锁定此方案。
+        </p>
+      </div>
+    </div>
+
   </div>
 
-  <script>
-    function selectSkin(skinName) {
-      // Notify parent or save config
-      alert('已将当前桌宠皮肤切换为：' + skinName + '\n您也可以直接在屏幕右下角托盘菜单【🎨 切换桌宠皮肤】中快速循环切肤！');
-    }
-  </script>
+  <div class="action-card">
+    <h3>🗳️ 方案选型与决策</h3>
+    <p>您可以在这里直接告诉我您中意的方案编号（例如 <b>方案一</b>、<b>方案二</b>、<b>方案三</b> 或保留 <b>方案四初版</b>）。我们将遵循严格的工程流程，在您拍板选定后再执行对应的美术资产与动效落地，杜绝盲目改动代码。</p>
+  </div>
+</div>
+
+<script>
+  // Aether Mascot Control
+  const aether = document.getElementById('mascot-aether');
+  const bubbleAether = document.getElementById('bubble-aether');
+  function setAetherState(state, text) {
+    aether.className = 'mascot-aether ' + state;
+    bubbleAether.textContent = text;
+    bubbleAether.classList.add('active');
+    setTimeout(() => {
+      if (state !== 'idle') bubbleAether.classList.remove('active');
+    }, 4000);
+  }
+  document.getElementById('stage-aether').addEventListener('click', () => {
+    setAetherState('poke', '转体比耶！地标已锁定，随时向 Gemini 提问 🚀');
+    setTimeout(() => { aether.className = 'mascot-aether idle'; }, 800);
+  });
+
+  // Gaia Mascot Control
+  const gaia = document.getElementById('mascot-gaia');
+  const bubbleGaia = document.getElementById('bubble-gaia');
+  function setGaiaState(state, text) {
+    gaia.className = 'mascot-gaia ' + state;
+    bubbleGaia.textContent = text;
+    bubbleGaia.classList.add('active');
+    setTimeout(() => {
+      if (state !== 'idle') bubbleGaia.classList.remove('active');
+    }, 4000);
+  }
+  document.getElementById('stage-gaia').addEventListener('click', () => {
+    setGaiaState('poke', '果冻弹性回弹，头顶小花开得更欢啦 🌸');
+    setTimeout(() => { gaia.className = 'mascot-gaia idle'; }, 800);
+  });
+
+  // Probe Mascot Control
+  const probe = document.getElementById('mascot-probe');
+  const bubbleProbe = document.getElementById('bubble-probe');
+  function setProbeState(state, text) {
+    probe.className = 'mascot-probe ' + state;
+    bubbleProbe.textContent = text;
+    bubbleProbe.classList.add('active');
+    setTimeout(() => {
+      if (state !== 'idle') bubbleProbe.classList.remove('active');
+    }, 4000);
+  }
+  document.getElementById('stage-probe').addEventListener('click', () => {
+    setProbeState('poke', '机械对焦锁定！全息 HUD 准备就绪 ⚡');
+    setTimeout(() => { probe.className = 'mascot-probe idle'; }, 800);
+  });
+
+  // Classic Mascot Control
+  const classic = document.getElementById('mascot-classic');
+  const bubbleClassic = document.getElementById('bubble-classic');
+  function setClassicState(state, text) {
+    classic.className = 'mascot-classic ' + state;
+    bubbleClassic.textContent = text;
+    bubbleClassic.classList.add('active');
+    setTimeout(() => {
+      if (state !== 'idle') bubbleClassic.classList.remove('active');
+    }, 4000);
+  }
+  document.getElementById('stage-classic').addEventListener('click', () => {
+    setClassicState('poke', '点击展开控制中枢 · 经典初版 🌍');
+    setTimeout(() => { classic.className = 'mascot-classic idle'; }, 800);
+  });
+</script>
+
 </body>
 </html>
