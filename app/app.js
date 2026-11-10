@@ -1,5 +1,6 @@
 /* ============================================================
    Earth Tabliss Live Wallpaper - Zero-Overhead Static Engine
+   Double-Buffered Preload Queue (0 Black Screen, 0ms Next Switch)
    ============================================================ */
 
 (function () {
@@ -8,6 +9,9 @@
   const state = {
     locations: [],
     currentIndex: -1,
+    preloadQueue: [], // Preloaded buffer queue [{ item, img }]
+    loadingCount: 0,
+    maxQueueSize: 3,
     activeLayer: 'a',
     isHudVisible: true,
     currentLocation: {
@@ -16,8 +20,7 @@
       coords: { lat: '-10.040181', lng: '143.560709' },
       map: 'https://www.google.com/maps/@-10.040181,143.560709,12z/data=!3m1!1e3',
       image: 'assets/default_earth.jpg'
-    },
-    isPreloading: false
+    }
   };
 
   const el = {
@@ -83,76 +86,111 @@
     return { lat: '0.000000', lng: '0.000000' };
   }
 
+  // 3. Preload Queue Buffer Engine (Handles Initial Load & Rapid Continuous Next Requests)
+  function fillPreloadQueue() {
+    if (!state.locations || state.locations.length === 0) return;
+
+    while (state.preloadQueue.length + state.loadingCount < state.maxQueueSize) {
+      state.loadingCount++;
+      // Pick next sequential/random candidate
+      state.currentIndex = (state.currentIndex + 1) % state.locations.length;
+      const candidate = state.locations[state.currentIndex];
+
+      if (!candidate || !candidate.image) {
+        state.loadingCount--;
+        break;
+      }
+
+      candidate.coords = parseCoordinates(candidate.map);
+      const img = new Image();
+
+      img.onload = () => {
+        state.loadingCount--;
+        state.preloadQueue.push({ item: candidate, img: img });
+
+        // If this is the initial fill and we haven't rendered the first live wallpaper yet
+        if (state.currentLocation.image === 'assets/default_earth.jpg' && state.preloadQueue.length === 1) {
+          nextWallpaper();
+        } else if (state.preloadQueue.length + state.loadingCount < state.maxQueueSize) {
+          fillPreloadQueue();
+        }
+      };
+
+      img.onerror = () => {
+        state.loadingCount--;
+        fillPreloadQueue(); // Try next on network glitch
+      };
+
+      img.src = candidate.image;
+    }
+  }
+
+  // 4. Apply Wallpaper & Double-Buffer Crossfade (0ms switch, zero black screen)
+  function applyWallpaper(item) {
+    if (!item) return;
+    state.currentLocation = item;
+    if (!item.coords) item.coords = parseCoordinates(item.map);
+
+    // Update HUD typography
+    el.country.textContent = item.country || '地球未知秘境';
+    el.region.textContent = item.region || '自然地貌卫星观测';
+    el.valLat.textContent = item.coords.lat;
+    el.valLng.textContent = item.coords.lng;
+
+    // Double-buffer swap
+    const targetLayer = state.activeLayer === 'a' ? el.bgB : el.bgA;
+    const oldLayer = state.activeLayer === 'a' ? el.bgA : el.bgB;
+
+    targetLayer.style.backgroundImage = `url("${item.image}")`;
+    targetLayer.classList.add('active');
+    oldLayer.classList.remove('active');
+
+    state.activeLayer = state.activeLayer === 'a' ? 'b' : 'a';
+
+    // Notify C# Host of current location data
+    if (window.chrome && window.chrome.webview) {
+      window.chrome.webview.postMessage({
+        type: 'location_changed',
+        data: {
+          id: item.id || '',
+          country: item.country || '',
+          region: item.region || '',
+          coords: item.coords,
+          map: item.map || '',
+          image: item.image || ''
+        }
+      });
+    }
+  }
+
+  function nextWallpaper() {
+    if (state.preloadQueue.length > 0) {
+      // Instant pop from preloaded memory queue!
+      const next = state.preloadQueue.shift();
+      applyWallpaper(next.item);
+      fillPreloadQueue(); // Replenish buffer queue
+    } else if (state.locations && state.locations.length > 0) {
+      // Fallback if user clicked faster than buffer replenishment
+      state.currentIndex = (state.currentIndex + 1) % state.locations.length;
+      const fallbackItem = state.locations[state.currentIndex];
+      fallbackItem.coords = parseCoordinates(fallbackItem.map);
+      applyWallpaper(fallbackItem);
+      fillPreloadQueue();
+    }
+  }
+
   async function loadEarthLocations() {
     try {
       const resp = await fetch('data/earthview.json');
       state.locations = await resp.json();
       state.currentIndex = Math.floor(Math.random() * state.locations.length);
-      renderCurrentLocation();
+      fillPreloadQueue();
     } catch (err) {
       console.error('[EarthWallpaper] Failed to load earthview.json:', err);
     }
   }
 
-  // 3. Double-Buffered Full-Preload Engine (0 Black Bars)
-  function renderCurrentLocation() {
-    if (!state.locations || state.locations.length === 0 || state.isPreloading) return;
-    const item = state.locations[state.currentIndex];
-    state.currentLocation = item;
-    item.coords = parseCoordinates(item.map);
-
-    state.isPreloading = true;
-    const preloader = new Image();
-
-    preloader.onload = () => {
-      // Update text
-      el.country.textContent = item.country || '地球未知秘境';
-      el.region.textContent = item.region || '自然地貌卫星观测';
-      el.valLat.textContent = item.coords.lat;
-      el.valLng.textContent = item.coords.lng;
-
-      // Swap layers
-      const targetLayer = state.activeLayer === 'a' ? el.bgB : el.bgA;
-      const oldLayer = state.activeLayer === 'a' ? el.bgA : el.bgB;
-
-      targetLayer.style.backgroundImage = `url("${item.image}")`;
-      targetLayer.classList.add('active');
-      oldLayer.classList.remove('active');
-
-      state.activeLayer = state.activeLayer === 'a' ? 'b' : 'a';
-      state.isPreloading = false;
-
-      // Notify C# Host of current location data
-      if (window.chrome && window.chrome.webview) {
-        window.chrome.webview.postMessage({
-          type: 'location_changed',
-          data: {
-            id: item.id || '',
-            country: item.country || '',
-            region: item.region || '',
-            coords: item.coords,
-            map: item.map || '',
-            image: item.image || ''
-          }
-        });
-      }
-    };
-
-    preloader.onerror = () => {
-      state.isPreloading = false;
-      // Skip broken image
-      nextWallpaper();
-    };
-
-    preloader.src = item.image;
-  }
-
-  function nextWallpaper() {
-    state.currentIndex = (state.currentIndex + 1) % state.locations.length;
-    renderCurrentLocation();
-  }
-
-  // 4. Toggle HUD Visibility
+  // 5. Toggle HUD Visibility
   function toggleHud(visible) {
     if (typeof visible === 'boolean') {
       state.isHudVisible = visible;
@@ -164,7 +202,7 @@
     if (el.hudBottom) el.hudBottom.style.opacity = op;
   }
 
-  // 5. Gemini Analysis
+  // 6. Gemini Analysis
   function openGemini() {
     if (!state.currentLocation) return;
     const loc = state.currentLocation;
@@ -185,7 +223,7 @@
     el.drawerGemini.classList.remove('open');
   }
 
-  // 6. IPC Listener from C# Host
+  // 7. IPC Listener from C# Host
   if (window.chrome && window.chrome.webview) {
     window.chrome.webview.addEventListener('message', (event) => {
       const msg = event.data;
@@ -199,29 +237,7 @@
       } else if (msg.type === 'set_custom_wallpaper') {
         const item = msg.data;
         if (!item || !item.image) return;
-        state.currentLocation = item;
-        item.coords = { lat: item.lat, lng: item.lng };
-
-        state.isPreloading = true;
-        const preloader = new Image();
-        preloader.onload = () => {
-          el.country.textContent = item.country || '地球秘境';
-          el.region.textContent = item.region || '卫星高分地貌观测';
-          el.valLat.textContent = item.coords.lat;
-          el.valLng.textContent = item.coords.lng;
-
-          const targetLayer = state.activeLayer === 'a' ? el.bgB : el.bgA;
-          const oldLayer = state.activeLayer === 'a' ? el.bgA : el.bgB;
-
-          targetLayer.style.backgroundImage = `url("${item.image}")`;
-          targetLayer.classList.add('active');
-          oldLayer.classList.remove('active');
-
-          state.activeLayer = state.activeLayer === 'a' ? 'b' : 'a';
-          state.isPreloading = false;
-        };
-        preloader.onerror = () => { state.isPreloading = false; };
-        preloader.src = item.image;
+        applyWallpaper(item);
       }
     });
   }

@@ -16,6 +16,7 @@ namespace EarthWallpaper
         private readonly EarthPetForm _petForm;
         private Button? _btnBookmark;
         private Button? _btnIcons;
+        private Button? _btnSkin;
         private Label? _lblLoc;
         private bool _iconsVisible = true;
 
@@ -111,11 +112,11 @@ namespace EarthWallpaper
             });
             btnY += btnHeight + btnSpacing;
 
-            // Skin Showcase HTML
-            var btnShowcase = CreateMenuButton("📱 桌宠设计提案 (HTML 方案库)", 12, btnY, Color.FromArgb(192, 132, 252), (s, e) =>
+            // Dual Skin Toggle (Classic Orb / O.R.B. Probe)
+            _btnSkin = CreateMenuButton($"🎨 外观: {_petForm.GetSkinDisplayName()}", 12, btnY, Color.FromArgb(192, 132, 252), (s, e) =>
             {
-                Hide();
-                _wallpaperForm.OpenSkinShowcase();
+                _petForm.ToggleSkin();
+                UpdateSkinButtonText();
             });
             btnY += btnHeight + btnSpacing;
 
@@ -149,7 +150,7 @@ namespace EarthWallpaper
             Controls.Add(_btnBookmark);
             Controls.Add(btnViewBookmarks);
             Controls.Add(btnGemini);
-            Controls.Add(btnShowcase);
+            Controls.Add(_btnSkin);
             Controls.Add(btnNext);
             Controls.Add(_btnIcons);
             Controls.Add(btnMap);
@@ -178,6 +179,14 @@ namespace EarthWallpaper
                 bool isBm = BookmarkManager.IsBookmarked(loc.Lat, loc.Lng);
                 _btnBookmark.Text = isBm ? "★ 已在收藏夹 (点击取消)" : "⭐ 收藏当前地标";
                 _btnBookmark.ForeColor = isBm ? Color.FromArgb(250, 204, 21) : Color.FromArgb(241, 245, 249);
+            }
+        }
+
+        public void UpdateSkinButtonText()
+        {
+            if (_btnSkin != null)
+            {
+                _btnSkin.Text = $"🎨 外观: {_petForm.GetSkinDisplayName()}";
             }
         }
 

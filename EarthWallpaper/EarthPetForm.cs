@@ -2,11 +2,18 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace EarthWallpaper
 {
+    public enum PetSkin
+    {
+        ClassicOrb = 0, // 方案四：初版经典天体核心
+        OrbProbe = 1    // 方案三：O.R.B. 轨道测绘机
+    }
+
     public class EarthPetForm : Form
     {
         private readonly WallpaperForm _wallpaperForm;
@@ -20,10 +27,57 @@ namespace EarthWallpaper
         private Point _dragStartCursor;
         private bool _isHovered = false;
 
+        public PetSkin CurrentSkin { get; private set; } = PetSkin.ClassicOrb;
+        private static readonly string SkinConfigFile = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "EarthWallpaper", "pet_skin.txt");
+
         public EarthPetForm(WallpaperForm wallpaperForm)
         {
             _wallpaperForm = wallpaperForm;
+            LoadSavedSkin();
             InitializeComponent();
+        }
+
+        private void LoadSavedSkin()
+        {
+            try
+            {
+                if (File.Exists(SkinConfigFile))
+                {
+                    string text = File.ReadAllText(SkinConfigFile).Trim();
+                    if (Enum.TryParse<PetSkin>(text, out var skin))
+                    {
+                        CurrentSkin = skin;
+                        Program.Log($"EarthPetForm: Loaded skin {CurrentSkin}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Program.Log($"EarthPetForm.LoadSavedSkin error: {ex.Message}");
+            }
+        }
+
+        public void ToggleSkin()
+        {
+            CurrentSkin = CurrentSkin == PetSkin.ClassicOrb ? PetSkin.OrbProbe : PetSkin.ClassicOrb;
+            try
+            {
+                string dir = Path.GetDirectoryName(SkinConfigFile)!;
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                File.WriteAllText(SkinConfigFile, CurrentSkin.ToString());
+            }
+            catch { }
+
+            Invalidate();
+            string name = GetSkinDisplayName();
+            _petTooltip?.Show($"✨ 桌宠外观已切换: {name}", this, Width / 2, -50, 3000);
+        }
+
+        public string GetSkinDisplayName()
+        {
+            return CurrentSkin == PetSkin.ClassicOrb ? "初版天体核心" : "O.R.B. 测绘机";
         }
 
         private void InitializeComponent()
@@ -50,7 +104,7 @@ namespace EarthWallpaper
                 AutoPopDelay = 6000,
                 IsBalloon = true
             };
-            _petTooltip.SetToolTip(this, "🌍 小地球桌宠 (初版)\n点击唤起中枢，拖拽可自由漫游\n⭐ 可收藏地标或与 Gemini 对话");
+            _petTooltip.SetToolTip(this, "🌍 小地球桌宠\n点击唤起中枢，拖拽可自由漫游\n⭐ 可收藏地标或与 Gemini 对话");
 
             MouseDown += OnPetMouseDown;
             MouseMove += OnPetMouseMove;
@@ -181,6 +235,7 @@ namespace EarthWallpaper
             else
             {
                 _menuForm.UpdateLocationDisplay(_wallpaperForm.CurrentLocation);
+                _menuForm.UpdateSkinButtonText();
                 Point screenPos = PointToScreen(Point.Empty);
                 _menuForm.PositionNearPet(screenPos, Size);
                 _menuForm.Show();
@@ -226,14 +281,28 @@ namespace EarthWallpaper
         }
 
         // ==========================================
-        // Exact Initial Version Painting (Commit 021c831)
+        // Visual Rendering (Selected Skins 3 & 4)
         // ==========================================
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
 
+            if (CurrentSkin == PetSkin.OrbProbe)
+            {
+                DrawOrbProbe(g);
+            }
+            else
+            {
+                DrawClassicOrb(g);
+            }
+        }
+
+        // 方案四：初版经典天体核心 (Classic Orb)
+        private void DrawClassicOrb(Graphics g)
+        {
             // 1. Cosmic Deep Gradient Background
             using (var brush = new LinearGradientBrush(new Rectangle(0, 0, Width, Height),
                        Color.FromArgb(10, 15, 30), Color.FromArgb(2, 6, 23), 45f))
@@ -264,6 +333,84 @@ namespace EarthWallpaper
             using (var dotRingPen = new Pen(Color.FromArgb(15, 23, 42), 1.5f))
             {
                 g.DrawEllipse(dotRingPen, Width - 20, Height - 20, 8, 8);
+            }
+        }
+
+        // 方案三：O.R.B. 轨道测绘机 (Orbital Recon Bot)
+        private void DrawOrbProbe(Graphics g)
+        {
+            int cx = Width / 2;
+            int cy = Height / 2;
+
+            // 1. Cyber Dark Base
+            using (var brush = new SolidBrush(Color.FromArgb(15, 23, 42)))
+            {
+                g.FillEllipse(brush, 2, 2, Width - 5, Height - 5);
+            }
+
+            // 2. Levitation Wings (Left & Right)
+            int wingOffset = _isHovered ? 3 : 0;
+            using (var wingBrush = new SolidBrush(Color.FromArgb(30, 41, 59)))
+            using (var wingPen = new Pen(Color.FromArgb(6, 182, 212), 1.5f))
+            {
+                // Left Wing
+                Point[] leftWing = new Point[] {
+                    new Point(10 - wingOffset, cy - 14),
+                    new Point(20 - wingOffset, cy - 18),
+                    new Point(22 - wingOffset, cy + 18),
+                    new Point(8 - wingOffset, cy + 14)
+                };
+                g.FillPolygon(wingBrush, leftWing);
+                g.DrawPolygon(wingPen, leftWing);
+
+                // Right Wing
+                Point[] rightWing = new Point[] {
+                    new Point(Width - 10 + wingOffset, cy - 14),
+                    new Point(Width - 20 + wingOffset, cy - 18),
+                    new Point(Width - 22 + wingOffset, cy + 18),
+                    new Point(Width - 8 + wingOffset, cy + 14)
+                };
+                g.FillPolygon(wingBrush, rightWing);
+                g.DrawPolygon(wingPen, rightWing);
+            }
+
+            // 3. Central Diamond Cybernetic Armor (Rotated 45 degrees)
+            int coreSize = 20;
+            Point[] diamond = new Point[] {
+                new Point(cx, cy - coreSize),
+                new Point(cx + coreSize, cy),
+                new Point(cx, cy + coreSize),
+                new Point(cx - coreSize, cy)
+            };
+            using (var coreBrush = new SolidBrush(Color.FromArgb(2, 6, 23)))
+            using (var corePen = new Pen(_isHovered ? Color.FromArgb(56, 189, 248) : Color.FromArgb(6, 182, 212), 2f))
+            {
+                g.FillPolygon(coreBrush, diamond);
+                g.DrawPolygon(corePen, diamond);
+            }
+
+            // 4. Central Aperture Optical Lens (Iris)
+            int irisR = 10;
+            using (var irisBrush = new SolidBrush(Color.FromArgb(8, 47, 73)))
+            using (var irisPen = new Pen(Color.FromArgb(34, 211, 238), 1.5f))
+            {
+                g.FillEllipse(irisBrush, cx - irisR, cy - irisR, irisR * 2, irisR * 2);
+                g.DrawEllipse(irisPen, cx - irisR, cy - irisR, irisR * 2, irisR * 2);
+            }
+
+            // 5. Optical Pupil Focus (Glowing Center)
+            int pupilR = _isHovered ? 5 : 3;
+            using (var pupilBrush = new SolidBrush(_isHovered ? Color.FromArgb(125, 211, 252) : Color.FromArgb(56, 189, 248)))
+            {
+                g.FillEllipse(pupilBrush, cx - pupilR, cy - pupilR, pupilR * 2, pupilR * 2);
+            }
+
+            // 6. Online Status Beacon
+            using (var dotBrush = new SolidBrush(Color.FromArgb(34, 197, 94)))
+            using (var dotRingPen = new Pen(Color.FromArgb(15, 23, 42), 1.5f))
+            {
+                g.FillEllipse(dotBrush, Width - 18, Height - 18, 8, 8);
+                g.DrawEllipse(dotRingPen, Width - 18, Height - 18, 8, 8);
             }
         }
 
