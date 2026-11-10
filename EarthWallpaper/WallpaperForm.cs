@@ -15,7 +15,7 @@ namespace EarthWallpaper
         private WebView2? _webView;
         private PowerGovernor? _powerGovernor;
         private NotifyIcon? _trayIcon;
-        private FloatingBarForm? _floatingBar;
+        private EarthPetForm? _petForm;
         private bool _isDesktopAttached = false;
         private string _appPath = string.Empty;
 
@@ -87,16 +87,16 @@ namespace EarthWallpaper
             Program.Log("InitWebViewAsync completed, attaching to desktop...");
             AttachToDesktopLayer();
 
-            // Launch 100% clickable top-level floating control bar
+            // Launch interactive Desktop Pet Form (小地球桌宠)
             try
             {
-                _floatingBar = new FloatingBarForm(this);
-                _floatingBar.Show();
-                Program.Log("FloatingBarForm launched successfully.");
+                _petForm = new EarthPetForm(this);
+                _petForm.Show();
+                Program.Log("EarthPetForm launched successfully.");
             }
             catch (Exception ex)
             {
-                Program.Log($"FloatingBarForm launch exception: {ex.Message}");
+                Program.Log($"EarthPetForm launch exception: {ex.Message}");
             }
 
             _powerGovernor = new PowerGovernor(OnPowerStateChanged);
@@ -197,6 +197,7 @@ namespace EarthWallpaper
                         CurrentLocation.Lng = coordsEl.TryGetProperty("lng", out var lngEl) ? lngEl.GetString() ?? "" : "";
                     }
                     Program.Log($"WallpaperForm: CurrentLocation updated to {CurrentLocation.GetDisplayName()} ({CurrentLocation.Lat}, {CurrentLocation.Lng})");
+                    _petForm?.NotifyLocationChanged(CurrentLocation);
                 }
                 else if (type == "open_url" && root.TryGetProperty("url", out var urlProp))
                 {
@@ -229,7 +230,7 @@ namespace EarthWallpaper
                 _trayIcon.Visible = false;
                 _trayIcon.Dispose();
             }
-            _floatingBar?.Dispose();
+            _petForm?.Dispose();
 
             // Always restore original Windows wallpaper on exit
             DesktopWorker.RestoreOriginalWallpaper();
@@ -243,7 +244,7 @@ namespace EarthWallpaper
             {
                 _powerGovernor?.Dispose();
                 _trayIcon?.Dispose();
-                _floatingBar?.Dispose();
+                _petForm?.Dispose();
                 _webView?.Dispose();
             }
             base.Dispose(disposing);

@@ -10,7 +10,13 @@
     currentIndex: -1,
     activeLayer: 'a',
     isHudVisible: true,
-    currentLocation: null,
+    currentLocation: {
+      country: 'Australia',
+      region: 'Torres Strait',
+      coords: { lat: '-10.040181', lng: '143.560709' },
+      map: 'https://www.google.com/maps/@-10.040181,143.560709,12z/data=!3m1!1e3',
+      image: 'assets/default_earth.jpg'
+    },
     isPreloading: false
   };
 
@@ -196,6 +202,14 @@
 
   if (el.btnCloseGemini) el.btnCloseGemini.addEventListener('click', closeGemini);
   if (el.btnRunGemini) el.btnRunGemini.addEventListener('click', openGemini);
+
+  // Notify C# Host of initial default location immediately
+  if (window.chrome && window.chrome.webview) {
+    window.chrome.webview.postMessage({
+      type: 'location_changed',
+      data: state.currentLocation
+    });
+  }
 
   loadEarthLocations();
 

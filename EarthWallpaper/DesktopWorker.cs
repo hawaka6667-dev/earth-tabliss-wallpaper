@@ -17,6 +17,9 @@ namespace EarthWallpaper
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam, uint fuFlags, uint uTimeout, out IntPtr lpdwResult);
 
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
@@ -173,13 +176,21 @@ namespace EarthWallpaper
         {
             IntPtr shellView = GetShellViewHandle();
             Program.Log($"DesktopWorker: ToggleDesktopIcons, shellView = {shellView}");
-            if (shellView != IntPtr.Zero)
+            if (shellView == IntPtr.Zero) return true;
+
+            // Target the actual icons ListView inside SHELLDLL_DefView to preserve transparency of SHELLDLL_DefView
+            IntPtr listView = FindWindowEx(shellView, IntPtr.Zero, "SysListView32", null);
+            if (listView != IntPtr.Zero)
             {
-                bool isVisible = IsWindowVisible(shellView);
-                ShowWindow(shellView, isVisible ? 0 /* SW_HIDE */ : 5 /* SW_SHOW */);
-                Program.Log($"DesktopWorker: Toggled icons visibility to {!isVisible}");
+                bool isVisible = IsWindowVisible(listView);
+                ShowWindow(listView, isVisible ? 0 /* SW_HIDE */ : 5 /* SW_SHOW */);
+                Program.Log($"DesktopWorker: Toggled SysListView32 to {!isVisible}");
                 return !isVisible;
             }
+
+            // Fallback: Dispatch Explorer native "Show desktop icons" toggle command (0x7402 / 29698)
+            SendMessage(shellView, 0x0111 /* WM_COMMAND */, (IntPtr)0x7402, IntPtr.Zero);
+            Program.Log("DesktopWorker: Sent WM_COMMAND 0x7402 to SHELLDLL_DefView");
             return true;
         }
 
@@ -188,10 +199,15 @@ namespace EarthWallpaper
             try
             {
                 // 1. Ensure desktop icons are restored visible if previously hidden
-                if (ShellViewHandle != IntPtr.Zero && !IsWindowVisible(ShellViewHandle))
+                IntPtr shellView = GetShellViewHandle();
+                if (shellView != IntPtr.Zero)
                 {
-                    ShowWindow(ShellViewHandle, 5 /* SW_SHOW */);
-                    Program.Log("DesktopWorker: Restored desktop icons visibility on exit.");
+                    IntPtr listView = FindWindowEx(shellView, IntPtr.Zero, "SysListView32", null);
+                    if (listView != IntPtr.Zero && !IsWindowVisible(listView))
+                    {
+                        ShowWindow(listView, 5 /* SW_SHOW */);
+                        Program.Log("DesktopWorker: Restored SysListView32 visibility on exit.");
+                    }
                 }
 
                 // 2. High-priority fallback: Windows active transcoded wallpaper cache
