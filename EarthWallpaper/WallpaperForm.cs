@@ -15,8 +15,11 @@ namespace EarthWallpaper
         private WebView2? _webView;
         private PowerGovernor? _powerGovernor;
         private NotifyIcon? _trayIcon;
+        private FloatingBarForm? _floatingBar;
         private bool _isDesktopAttached = false;
         private string _appPath = string.Empty;
+
+        public LocationInfo? CurrentLocation { get; private set; }
 
         public WallpaperForm()
         {
@@ -33,8 +36,7 @@ namespace EarthWallpaper
             DoubleBuffered = true;
             BackColor = Color.Black;
 
-            // Match full primary screen initially
-            var bounds = Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
+            var bounds = Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1536, 864);
             Bounds = bounds;
 
             _webView = new WebView2
@@ -53,20 +55,15 @@ namespace EarthWallpaper
         {
             var menu = new ContextMenuStrip();
             
-            var itemNext = new ToolStripMenuItem("⏭ 下一张地球壁纸 (Space)", null, (s, e) => SendWebMessage("next_wallpaper"));
-            var itemGemini = new ToolStripMenuItem("✨ Gemini 地貌深度研判 (G)", null, (s, e) => SendWebMessage("open_gemini"));
-            var itemBookmarks = new ToolStripMenuItem("📌 打开研究收藏库 (B)", null, (s, e) => SendWebMessage("open_bookmarks"));
-            var itemSettings = new ToolStripMenuItem("⚙ 壁纸设置 (S)", null, (s, e) => SendWebMessage("open_settings"));
-            var itemToggleMode = new ToolStripMenuItem("🖥 切换窗口/桌面模式", null, (s, e) => ToggleWindowMode());
-            var itemExit = new ToolStripMenuItem("🚪 退出 Earth Tabliss", null, (s, e) => ExitApplication());
+            var itemIcons = new ToolStripMenuItem("👁 显隐桌面图标", null, (s, e) => DesktopWorker.ToggleDesktopIcons());
+            var itemNext = new ToolStripMenuItem("⏭ 下一张地球壁纸", null, (s, e) => SendWebMessage("next_wallpaper"));
+            var itemGemini = new ToolStripMenuItem("✨ Gemini 地貌深度研判", null, (s, e) => SendWebMessage("open_gemini"));
+            var itemExit = new ToolStripMenuItem("🚪 退出 Earth Tabliss (恢复原壁纸)", null, (s, e) => ExitApplication());
 
             menu.Items.AddRange(new ToolStripItem[] {
+                itemIcons,
                 itemNext,
                 itemGemini,
-                itemBookmarks,
-                new ToolStripSeparator(),
-                itemSettings,
-                itemToggleMode,
                 new ToolStripSeparator(),
                 itemExit
             });
@@ -89,6 +86,18 @@ namespace EarthWallpaper
 
             Program.Log("InitWebViewAsync completed, attaching to desktop...");
             AttachToDesktopLayer();
+
+            // Launch 100% clickable top-level floating control bar
+            try
+            {
+                _floatingBar = new FloatingBarForm(this);
+                _floatingBar.Show();
+                Program.Log("FloatingBarForm launched successfully.");
+            }
+            catch (Exception ex)
+            {
+                Program.Log($"FloatingBarForm launch exception: {ex.Message}");
+            }
 
             _powerGovernor = new PowerGovernor(OnPowerStateChanged);
             _powerGovernor.Start();
@@ -113,18 +122,15 @@ namespace EarthWallpaper
                 Program.Log($"InitWebViewAsync: _appPath = {_appPath}");
 
                 string userData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EarthWallpaper", "WebView2Data");
-                Program.Log($"InitWebViewAsync: userData = {userData}");
                 var env = await CoreWebView2Environment.CreateAsync(null, userData);
-                Program.Log("InitWebViewAsync: CoreWebView2Environment created");
 
                 if (_webView != null)
                 {
                     await _webView.EnsureCoreWebView2Async(env);
-                    Program.Log("InitWebViewAsync: EnsureCoreWebView2Async completed");
 
                     _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
                     _webView.CoreWebView2.Settings.IsZoomControlEnabled = false;
-                    _webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
+                    _webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
 
                     _webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
                         "earthwallpaper.local",
@@ -133,19 +139,12 @@ namespace EarthWallpaper
                     );
 
                     _webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
-                    _webView.CoreWebView2.NavigationCompleted += (s, e) =>
-                    {
-                        Program.Log($"WebView2 NavigationCompleted: isSuccess={e.IsSuccess}, status={e.WebErrorStatus}");
-                    };
-
-                    Program.Log("InitWebViewAsync: Navigating to https://earthwallpaper.local/index.html");
                     _webView.CoreWebView2.Navigate("https://earthwallpaper.local/index.html");
                 }
             }
             catch (Exception ex)
             {
-                Program.Log($"InitWebViewAsync EXCEPTION: {ex.Message}\n{ex.StackTrace}");
-                MessageBox.Show($"WebView2 初始化异常: {ex.Message}", "Earth Tabliss 错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Program.Log($"InitWebViewAsync EXCEPTION: {ex.Message}");
             }
         }
 
@@ -154,7 +153,7 @@ namespace EarthWallpaper
             _isDesktopAttached = DesktopWorker.AttachToDesktop(Handle);
             if (!_isDesktopAttached)
             {
-                Program.Log("[WallpaperForm] Failed to attach to WorkerW, falling back to visible windowed mode so user can see it.");
+                Program.Log("[WallpaperForm] Failed to attach to WorkerW, fallback windowed.");
                 FormBorderStyle = FormBorderStyle.Sizable;
                 Bounds = new Rectangle(120, 120, 1366, 768);
                 StartPosition = FormStartPosition.CenterScreen;
@@ -163,34 +162,10 @@ namespace EarthWallpaper
             }
         }
 
-        private void ToggleWindowMode()
-        {
-            if (_isDesktopAttached)
-            {
-                // Detach to floating window
-                DesktopWorker.SetParent(Handle, IntPtr.Zero);
-                FormBorderStyle = FormBorderStyle.Sizable;
-                Bounds = new Rectangle(100, 100, 1280, 720);
-                ShowInTaskbar = true;
-                _isDesktopAttached = false;
-            }
-            else
-            {
-                // Re-attach to desktop
-                FormBorderStyle = FormBorderStyle.None;
-                ShowInTaskbar = false;
-                AttachToDesktopLayer();
-            }
-        }
-
         private void OnPowerStateChanged(bool isPaused)
         {
             if (_webView != null && _webView.CoreWebView2 != null)
             {
-                string json = $"{{\"type\":\"power_state\",\"isPaused\":{isPaused.ToString().ToLower()}}}";
-                _webView.CoreWebView2.PostWebMessageAsJson(json);
-
-                // Set memory target to low when suspended to reclaim RAM for Celeron system
                 _webView.CoreWebView2.MemoryUsageTargetLevel = isPaused 
                     ? CoreWebView2MemoryUsageTargetLevel.Low 
                     : CoreWebView2MemoryUsageTargetLevel.Normal;
@@ -206,7 +181,24 @@ namespace EarthWallpaper
                 if (!root.TryGetProperty("type", out var typeProp)) return;
                 string type = typeProp.GetString() ?? string.Empty;
 
-                if (type == "open_url" && root.TryGetProperty("url", out var urlProp))
+                if (type == "location_changed" && root.TryGetProperty("data", out var dataEl))
+                {
+                    CurrentLocation = new LocationInfo
+                    {
+                        Id = dataEl.TryGetProperty("id", out var idEl) ? idEl.GetString() ?? "" : "",
+                        Country = dataEl.TryGetProperty("country", out var cEl) ? cEl.GetString() ?? "" : "",
+                        Region = dataEl.TryGetProperty("region", out var rEl) ? rEl.GetString() ?? "" : "",
+                        MapUrl = dataEl.TryGetProperty("map", out var mEl) ? mEl.GetString() ?? "" : "",
+                        ImageUrl = dataEl.TryGetProperty("image", out var imgEl) ? imgEl.GetString() ?? "" : ""
+                    };
+                    if (dataEl.TryGetProperty("coords", out var coordsEl))
+                    {
+                        CurrentLocation.Lat = coordsEl.TryGetProperty("lat", out var latEl) ? latEl.GetString() ?? "" : "";
+                        CurrentLocation.Lng = coordsEl.TryGetProperty("lng", out var lngEl) ? lngEl.GetString() ?? "" : "";
+                    }
+                    Program.Log($"WallpaperForm: CurrentLocation updated to {CurrentLocation.GetDisplayName()} ({CurrentLocation.Lat}, {CurrentLocation.Lng})");
+                }
+                else if (type == "open_url" && root.TryGetProperty("url", out var urlProp))
                 {
                     string url = urlProp.GetString() ?? string.Empty;
                     if (!string.IsNullOrEmpty(url))
@@ -214,30 +206,10 @@ namespace EarthWallpaper
                         Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
                     }
                 }
-                else if (type == "save_bookmark" && root.TryGetProperty("bookmark", out var bmProp))
-                {
-                    SaveBookmarkToDisk(bmProp.GetRawText());
-                }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[WallpaperForm] WebMessage parse error: {ex.Message}");
-            }
-        }
-
-        private void SaveBookmarkToDisk(string bookmarkJson)
-        {
-            try
-            {
-                string dataDir = Path.Combine(_appPath, "data");
-                Directory.CreateDirectory(dataDir);
-                string file = Path.Combine(dataDir, "bookmarks.json");
-
-                System.IO.File.AppendAllText(file, bookmarkJson + Environment.NewLine);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[WallpaperForm] Failed to write bookmark: {ex.Message}");
+                Program.Log($"OnWebMessageReceived error: {ex.Message}");
             }
         }
 
@@ -257,6 +229,11 @@ namespace EarthWallpaper
                 _trayIcon.Visible = false;
                 _trayIcon.Dispose();
             }
+            _floatingBar?.Dispose();
+
+            // Always restore original Windows wallpaper on exit
+            DesktopWorker.RestoreOriginalWallpaper();
+
             Application.Exit();
         }
 
@@ -266,6 +243,7 @@ namespace EarthWallpaper
             {
                 _powerGovernor?.Dispose();
                 _trayIcon?.Dispose();
+                _floatingBar?.Dispose();
                 _webView?.Dispose();
             }
             base.Dispose(disposing);

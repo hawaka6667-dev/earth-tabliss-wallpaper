@@ -1,7 +1,8 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
-using System.Windows.Forms;
+using Microsoft.Win32;
 
 namespace EarthWallpaper
 {
@@ -43,15 +44,6 @@ namespace EarthWallpaper
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
-        [StructLayout(LayoutKind.Sequential)]
-        public struct RECT
-        {
-            public int Left;
-            public int Top;
-            public int Right;
-            public int Bottom;
-        }
-
         [DllImport("user32.dll", SetLastError = true)]
         public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
 
@@ -60,6 +52,16 @@ namespace EarthWallpaper
 
         [DllImport("user32.dll")]
         public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        public static extern bool IsWindowVisible(IntPtr hWnd);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
+
+        public const int SPI_SETDESKWALLPAPER = 20;
+        public const int SPIF_UPDATEINIFILE = 0x01;
+        public const int SPIF_SENDCHANGE = 0x02;
 
         public const int GWL_STYLE = -16;
         public const int WS_CHILD = 0x40000000;
@@ -77,6 +79,7 @@ namespace EarthWallpaper
 
         public static IntPtr WorkerWHandle { get; private set; } = IntPtr.Zero;
         public static IntPtr ProgmanHandle { get; private set; } = IntPtr.Zero;
+        public static IntPtr ShellViewHandle { get; private set; } = IntPtr.Zero;
 
         public static bool AttachToDesktop(IntPtr formHandle)
         {
@@ -88,21 +91,21 @@ namespace EarthWallpaper
                 return false;
             }
 
-            // Send message 0x052C to Progman to spawn the WorkerW behind icons
+            // Send message 0x052C to Progman to spawn WorkerW behind icons
             IntPtr result = IntPtr.Zero;
             SendMessageTimeout(ProgmanHandle, 0x052C, IntPtr.Zero, IntPtr.Zero, 0x0002, 1000, out result);
             Program.Log($"DesktopWorker: Sent 0x052C to Progman, result = {result}");
 
             IntPtr workerw = IntPtr.Zero;
 
-            // Enumerate top-level windows to locate WorkerW
+            // Enumerate top-level windows to locate the WorkerW that sits behind SHELLDLL_DefView
             EnumWindows((hwnd, lParam) =>
             {
                 IntPtr shellView = FindWindowEx(hwnd, IntPtr.Zero, "SHELLDLL_DefView", null);
                 if (shellView != IntPtr.Zero)
                 {
-                    Program.Log($"DesktopWorker: Found SHELLDLL_DefView inside hwnd {hwnd}");
-                    // Gets the WorkerW window immediately behind SHELLDLL_DefView
+                    ShellViewHandle = shellView;
+                    Program.Log($"DesktopWorker: Found SHELLDLL_DefView ({shellView}) inside hwnd {hwnd}");
                     workerw = FindWindowEx(IntPtr.Zero, hwnd, "WorkerW", null);
                     Program.Log($"DesktopWorker: Sibling WorkerW behind it = {workerw}");
                 }
@@ -111,7 +114,6 @@ namespace EarthWallpaper
 
             if (workerw == IntPtr.Zero)
             {
-                // Fallback: in some Windows versions WorkerW is directly Progman's sibling
                 workerw = FindWindowEx(IntPtr.Zero, IntPtr.Zero, "WorkerW", null);
                 Program.Log($"DesktopWorker: Fallback workerw = {workerw}");
             }
@@ -120,27 +122,111 @@ namespace EarthWallpaper
             {
                 WorkerWHandle = workerw;
 
-                // Adjust window style to WS_CHILD before SetParent
                 int style = GetWindowLong(formHandle, GWL_STYLE);
                 SetWindowLong(formHandle, GWL_STYLE, (style | WS_CHILD | WS_VISIBLE) & ~WS_POPUP);
 
-                IntPtr prevParent = SetParent(formHandle, workerw);
-                Program.Log($"DesktopWorker: SetParent(form={formHandle}, workerw={workerw}), prevParent={prevParent}");
+                SetParent(formHandle, workerw);
 
-                // Resize to virtual screen covering all monitors
                 int vx = GetSystemMetrics(SM_XVIRTUALSCREEN);
                 int vy = GetSystemMetrics(SM_YVIRTUALSCREEN);
                 int vcx = GetSystemMetrics(SM_CXVIRTUALSCREEN);
                 int vcy = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 
                 SetWindowPos(formHandle, IntPtr.Zero, vx, vy, vcx, vcy, SWP_NOZORDER | SWP_SHOWWINDOW);
-                ShowWindow(formHandle, 1); // SW_SHOWNORMAL
+                ShowWindow(formHandle, 1);
                 Program.Log($"[DesktopWorker] Attached to WorkerW ({workerw}) successfully. Bounds: {vx},{vy} {vcx}x{vcy}");
                 return true;
             }
 
             Program.Log("[DesktopWorker] Failed to locate WorkerW.");
             return false;
+        }
+
+        public static IntPtr GetShellViewHandle()
+        {
+            if (ShellViewHandle != IntPtr.Zero)
+            {
+                return ShellViewHandle;
+            }
+
+            IntPtr progman = FindWindow("Progman", null);
+            IntPtr shellView = FindWindowEx(progman, IntPtr.Zero, "SHELLDLL_DefView", null);
+            if (shellView == IntPtr.Zero)
+            {
+                EnumWindows((hwnd, lParam) =>
+                {
+                    IntPtr sv = FindWindowEx(hwnd, IntPtr.Zero, "SHELLDLL_DefView", null);
+                    if (sv != IntPtr.Zero)
+                    {
+                        shellView = sv;
+                        return false;
+                    }
+                    return true;
+                }, IntPtr.Zero);
+            }
+
+            ShellViewHandle = shellView;
+            return shellView;
+        }
+
+        public static bool ToggleDesktopIcons()
+        {
+            IntPtr shellView = GetShellViewHandle();
+            Program.Log($"DesktopWorker: ToggleDesktopIcons, shellView = {shellView}");
+            if (shellView != IntPtr.Zero)
+            {
+                bool isVisible = IsWindowVisible(shellView);
+                ShowWindow(shellView, isVisible ? 0 /* SW_HIDE */ : 5 /* SW_SHOW */);
+                Program.Log($"DesktopWorker: Toggled icons visibility to {!isVisible}");
+                return !isVisible;
+            }
+            return true;
+        }
+
+        public static void RestoreOriginalWallpaper()
+        {
+            try
+            {
+                // 1. Ensure desktop icons are restored visible if previously hidden
+                if (ShellViewHandle != IntPtr.Zero && !IsWindowVisible(ShellViewHandle))
+                {
+                    ShowWindow(ShellViewHandle, 5 /* SW_SHOW */);
+                    Program.Log("DesktopWorker: Restored desktop icons visibility on exit.");
+                }
+
+                // 2. High-priority fallback: Windows active transcoded wallpaper cache
+                string transcoded = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), @"Microsoft\Windows\Themes\TranscodedWallpaper");
+                string? wallpaper = Registry.GetValue(@"HKEY_CURRENT_USER\Control Panel\Desktop", "Wallpaper", "") as string;
+
+                string target = "";
+                if (File.Exists(transcoded))
+                {
+                    target = transcoded;
+                }
+                else if (!string.IsNullOrEmpty(wallpaper) && File.Exists(wallpaper))
+                {
+                    target = wallpaper;
+                }
+
+                Program.Log($"DesktopWorker: Restoring original wallpaper target: {target}");
+                if (!string.IsNullOrEmpty(target))
+                {
+                    SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, target, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+                }
+            }
+            catch (Exception ex)
+            {
+                Program.Log($"DesktopWorker: RestoreOriginalWallpaper exception: {ex.Message}");
+            }
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct RECT
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
         }
     }
 }

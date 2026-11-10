@@ -47,11 +47,18 @@ namespace EarthWallpaper
                 return;
             }
 
+            AppDomain.CurrentDomain.ProcessExit += (s, e) =>
+            {
+                DesktopWorker.RestoreOriginalWallpaper();
+            };
+
             // Spawn clean STA UI thread to avoid CLR [STAThread] pre-creating OLE window on sandbox desktop
             var uiThread = new Thread(RunUIThread);
             uiThread.SetApartmentState(ApartmentState.STA);
             uiThread.Start();
             uiThread.Join();
+
+            DesktopWorker.RestoreOriginalWallpaper();
 
             if (_mutex != null)
             {
