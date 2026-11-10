@@ -6,22 +6,41 @@
 (function () {
   'use strict';
 
+  const LOCAL_FALLBACKS = [
+    {
+      country: 'Windows 桌面原色',
+      region: '电脑原生壁纸 (安全兜底)',
+      coords: { lat: '0.000000', lng: '0.000000' },
+      map: '',
+      image: 'assets/original_wallpaper.png'
+    },
+    {
+      country: '蔚蓝星球',
+      region: '行星地貌精选 (离线底图)',
+      coords: { lat: '-10.040181', lng: '143.560709' },
+      map: 'https://earth.google.com/web/',
+      image: 'assets/default_earth.jpg'
+    }
+  ];
+
   const state = {
     locations: [],
     currentIndex: -1,
     preloadQueue: [], // Preloaded buffer queue [{ item, img }]
     loadingCount: 0,
-    maxQueueSize: 3,
+    maxQueueSize: 4,
+    localFallbackIndex: 0,
     activeLayer: 'a',
     isHudVisible: true,
-    currentLocation: {
-      country: 'Australia',
-      region: 'Torres Strait',
-      coords: { lat: '-10.040181', lng: '143.560709' },
-      map: 'https://www.google.com/maps/@-10.040181,143.560709,12z/data=!3m1!1e3',
-      image: 'assets/default_earth.jpg'
-    }
+    currentLocation: LOCAL_FALLBACKS[1]
   };
+
+  // Immediate queue seeding with local offline assets so queue length is > 0 from millisecond 0
+  LOCAL_FALLBACKS.forEach(item => {
+    const img = new Image();
+    img.src = item.image;
+    state.preloadQueue.push({ item, img });
+  });
 
   const el = {
     bgA: document.getElementById('bg-layer-a'),
@@ -92,7 +111,6 @@
 
     while (state.preloadQueue.length + state.loadingCount < state.maxQueueSize) {
       state.loadingCount++;
-      // Pick next sequential/random candidate
       state.currentIndex = (state.currentIndex + 1) % state.locations.length;
       const candidate = state.locations[state.currentIndex];
 
@@ -108,17 +126,19 @@
         state.loadingCount--;
         state.preloadQueue.push({ item: candidate, img: img });
 
-        // If this is the initial fill and we haven't rendered the first live wallpaper yet
-        if (state.currentLocation.image === 'assets/default_earth.jpg' && state.preloadQueue.length === 1) {
-          nextWallpaper();
-        } else if (state.preloadQueue.length + state.loadingCount < state.maxQueueSize) {
+        if (state.preloadQueue.length + state.loadingCount < state.maxQueueSize) {
           fillPreloadQueue();
         }
       };
 
       img.onerror = () => {
         state.loadingCount--;
-        fillPreloadQueue(); // Try next on network glitch
+        // Push local fallback on error so queue is never starved
+        const fallback = LOCAL_FALLBACKS[state.localFallbackIndex++ % LOCAL_FALLBACKS.length];
+        const fImg = new Image();
+        fImg.src = fallback.image;
+        state.preloadQueue.push({ item: fallback, img: fImg });
+        fillPreloadQueue();
       };
 
       img.src = candidate.image;
@@ -137,11 +157,11 @@
     el.valLat.textContent = item.coords.lat;
     el.valLng.textContent = item.coords.lng;
 
-    // Double-buffer swap
+    // Double-buffer swap with fallback chain (Primary image -> original PC wallpaper -> default earth)
     const targetLayer = state.activeLayer === 'a' ? el.bgB : el.bgA;
     const oldLayer = state.activeLayer === 'a' ? el.bgA : el.bgB;
 
-    targetLayer.style.backgroundImage = `url("${item.image}")`;
+    targetLayer.style.backgroundImage = `url("${item.image}"), url("assets/original_wallpaper.png"), url("assets/default_earth.jpg")`;
     targetLayer.classList.add('active');
     oldLayer.classList.remove('active');
 
@@ -165,18 +185,55 @@
 
   function nextWallpaper() {
     if (state.preloadQueue.length > 0) {
-      // Instant pop from preloaded memory queue!
+      // 1. Instant pop from preloaded memory queue (0ms, zero black screen guaranteed)
       const next = state.preloadQueue.shift();
       applyWallpaper(next.item);
       fillPreloadQueue(); // Replenish buffer queue
-    } else if (state.locations && state.locations.length > 0) {
-      // Fallback if user clicked faster than buffer replenishment
-      state.currentIndex = (state.currentIndex + 1) % state.locations.length;
-      const fallbackItem = state.locations[state.currentIndex];
-      fallbackItem.coords = parseCoordinates(fallbackItem.map);
-      applyWallpaper(fallbackItem);
-      fillPreloadQueue();
+      return;
     }
+
+    // 2. Queue is temporarily empty (e.g. rapid user clicks or network delay)
+    // NEVER crossfade into a black void! Keep the current image visible while loading candidate.
+    if (!state.locations || state.locations.length === 0) {
+      const fallback = LOCAL_FALLBACKS[state.localFallbackIndex++ % LOCAL_FALLBACKS.length];
+      applyWallpaper(fallback);
+      return;
+    }
+
+    state.currentIndex = (state.currentIndex + 1) % state.locations.length;
+    const candidate = state.locations[state.currentIndex];
+    candidate.coords = parseCoordinates(candidate.map);
+
+    const testImg = new Image();
+    let isHandled = false;
+
+    // 2.0s network timeout: if download lags, smoothly fall back to local placeholder / original wallpaper
+    const timeoutTimer = setTimeout(() => {
+      if (isHandled) return;
+      isHandled = true;
+      const fallback = LOCAL_FALLBACKS[state.localFallbackIndex++ % LOCAL_FALLBACKS.length];
+      applyWallpaper(fallback);
+      fillPreloadQueue();
+    }, 2000);
+
+    testImg.onload = () => {
+      if (isHandled) return;
+      isHandled = true;
+      clearTimeout(timeoutTimer);
+      applyWallpaper(candidate);
+      fillPreloadQueue();
+    };
+
+    testImg.onerror = () => {
+      if (isHandled) return;
+      isHandled = true;
+      clearTimeout(timeoutTimer);
+      const fallback = LOCAL_FALLBACKS[state.localFallbackIndex++ % LOCAL_FALLBACKS.length];
+      applyWallpaper(fallback);
+      fillPreloadQueue();
+    };
+
+    testImg.src = candidate.image;
   }
 
   async function loadEarthLocations() {
@@ -237,7 +294,16 @@
       } else if (msg.type === 'set_custom_wallpaper') {
         const item = msg.data;
         if (!item || !item.image) return;
-        applyWallpaper(item);
+        const img = new Image();
+        img.onload = () => applyWallpaper(item);
+        img.onerror = () => applyWallpaper({
+          country: item.country || '地标收藏',
+          region: item.region || '自定义地貌',
+          coords: { lat: item.lat || '0.000000', lng: item.lng || '0.000000' },
+          map: item.map || '',
+          image: 'assets/default_earth.jpg'
+        });
+        img.src = item.image;
       }
     });
   }

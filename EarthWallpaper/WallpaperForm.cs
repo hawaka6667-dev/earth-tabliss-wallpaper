@@ -188,6 +188,21 @@ namespace EarthWallpaper
 
                 Program.Log($"InitWebViewAsync: _appPath = {_appPath}");
 
+                // Sync backed up original wallpaper to app assets so WebView2 can always use it as zero-black fallback
+                string backupPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EarthWallpaper", "original_wallpaper_backup.png");
+                string targetAsset = Path.Combine(_appPath, "assets", "original_wallpaper.png");
+                if (File.Exists(backupPath))
+                {
+                    try
+                    {
+                        string assetDir = Path.GetDirectoryName(targetAsset)!;
+                        if (!Directory.Exists(assetDir)) Directory.CreateDirectory(assetDir);
+                        File.Copy(backupPath, targetAsset, true);
+                        Program.Log($"InitWebViewAsync: Synced user wallpaper to {targetAsset}");
+                    }
+                    catch { }
+                }
+
                 string userData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EarthWallpaper", "WebView2Data");
                 var env = await CoreWebView2Environment.CreateAsync(null, userData);
 

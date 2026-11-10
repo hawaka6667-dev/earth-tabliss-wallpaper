@@ -42,7 +42,10 @@ html, body {
   height: 100%;
   z-index: 1;
   overflow: hidden;
-  background-color: #030712;
+  background-color: #0b0f19;
+  background-image: url('assets/original_wallpaper.png'), url('assets/default_earth.jpg');
+  background-size: cover;
+  background-position: center center;
 }
 
 .bg-layer {
@@ -53,9 +56,10 @@ html, body {
   height: 100%;
   background-size: cover;
   background-position: center center;
+  background-color: transparent;
   opacity: 0;
-  /* Only transitions during the 0.5s wallpaper switch, then COMPLETELY STOPS (0 FPS) */
-  transition: opacity 0.5s ease-out;
+  /* Only transitions during the 0.6s wallpaper switch, then COMPLETELY STOPS (0 FPS) */
+  transition: opacity 0.6s ease-in-out;
 }
 
 .bg-layer.active {
