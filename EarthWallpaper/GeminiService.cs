@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace EarthWallpaper
@@ -90,6 +91,64 @@ namespace EarthWallpaper
 
             // Fallback to high-fidelity built-in domain reasoning
             return GetHeuristicAnswer(location, userQuestion);
+        }
+
+        public static async Task<(bool success, string message)> VerifyApiKeyAsync(string apiKey)
+        {
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                return (false, "密钥为空，请输入有效的 API Key。");
+            }
+
+            try
+            {
+                string cleanKey = apiKey.Trim();
+                string url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={cleanKey}";
+                var payload = new
+                {
+                    contents = new[]
+                    {
+                        new { role = "user", parts = new[] { new { text = "Ping" } } }
+                    },
+                    generationConfig = new { maxOutputTokens = 5 }
+                };
+
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+                using var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+                var resp = await _httpClient.PostAsync(url, content, cts.Token);
+                string respBody = await resp.Content.ReadAsStringAsync(cts.Token);
+
+                if (resp.IsSuccessStatusCode)
+                {
+                    return (true, "连接成功！Gemini 2.5 Flash 服务正常响应就绪。");
+                }
+
+                string errMsg = $"HTTP {(int)resp.StatusCode}";
+                try
+                {
+                    using var doc = JsonDocument.Parse(respBody);
+                    if (doc.RootElement.TryGetProperty("error", out var errEl) && errEl.TryGetProperty("message", out var msgEl))
+                    {
+                        errMsg = msgEl.GetString() ?? errMsg;
+                    }
+                }
+                catch { }
+
+                if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest || resp.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                {
+                    return (false, $"密钥无效或无访问权限 ({errMsg})");
+                }
+
+                return (false, $"服务返回异常 ({errMsg})");
+            }
+            catch (OperationCanceledException)
+            {
+                return (false, "请求超时（请检查本地网络连接或代理配置）");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"网络连接失败: {ex.Message}");
+            }
         }
 
         private static async Task<string> CallGeminiApiAsync(string apiKey, LocationInfo loc, string question, List<(string role, string text)> history)

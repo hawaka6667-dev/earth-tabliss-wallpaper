@@ -637,67 +637,8 @@ namespace EarthWallpaper
 
         private void PromptApiKeySetting()
         {
-            string currentKey = GeminiService.GetApiKey();
-            using var dlg = new Form
-            {
-                Text = "配置 Gemini API 密钥",
-                Size = new Size(460, 200),
-                StartPosition = FormStartPosition.CenterParent,
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                MaximizeBox = false,
-                MinimizeBox = false,
-                BackColor = Color.FromArgb(15, 23, 42),
-                ForeColor = Color.White
-            };
-
-            var lblPrompt = new Label
-            {
-                Text = "请输入您的 Google AI Studio API 密钥：\n(可在 aistudio.google.com 免费获取)",
-                Location = new Point(20, 20),
-                Size = new Size(400, 36),
-                Font = new Font("Segoe UI", 9f)
-            };
-
-            var txtKey = new TextBox
-            {
-                Text = currentKey,
-                Location = new Point(20, 68),
-                Size = new Size(400, 24),
-                BackColor = Color.FromArgb(30, 41, 59),
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 9.5f)
-            };
-
-            var btnSave = new Button
-            {
-                Text = "保存密钥",
-                DialogResult = DialogResult.OK,
-                Location = new Point(230, 110),
-                Size = new Size(90, 32),
-                BackColor = Color.FromArgb(2, 132, 199),
-                FlatStyle = FlatStyle.Flat
-            };
-
-            var btnCancel = new Button
-            {
-                Text = "取消",
-                DialogResult = DialogResult.Cancel,
-                Location = new Point(330, 110),
-                Size = new Size(90, 32),
-                BackColor = Color.FromArgb(30, 41, 59),
-                FlatStyle = FlatStyle.Flat
-            };
-
-            dlg.Controls.Add(lblPrompt);
-            dlg.Controls.Add(txtKey);
-            dlg.Controls.Add(btnSave);
-            dlg.Controls.Add(btnCancel);
-
-            if (dlg.ShowDialog(this) == DialogResult.OK)
-            {
-                GeminiService.SetApiKey(txtKey.Text.Trim());
-                MessageBox.Show("Gemini API 密钥已保存！", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
+            using var dlg = new ApiKeySettingsForm();
+            dlg.ShowDialog(this);
         }
 
         protected override void OnPaint(PaintEventArgs e)

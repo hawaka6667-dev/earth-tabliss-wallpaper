@@ -35,6 +35,33 @@ namespace EarthWallpaper
 
         static void Main(string[] args)
         {
+            if (args.Length > 0 && args[0] == "--render-api-dialog")
+            {
+                try
+                {
+                    ApplicationConfiguration.Initialize();
+                    var form = new ApiKeySettingsForm();
+                    var timer = new System.Windows.Forms.Timer { Interval = 600 };
+                    timer.Tick += (s, e) =>
+                    {
+                        timer.Stop();
+                        using var bmp = new System.Drawing.Bitmap(form.ClientSize.Width, form.ClientSize.Height);
+                        form.DrawToBitmap(bmp, new System.Drawing.Rectangle(0, 0, form.ClientSize.Width, form.ClientSize.Height));
+                        string outPath = args.Length > 1 ? args[1] : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "api_settings_verified.png");
+                        bmp.Save(outPath, System.Drawing.Imaging.ImageFormat.Png);
+                        Log($"Rendered API settings dialog to {outPath}");
+                        form.Close();
+                    };
+                    timer.Start();
+                    Application.Run(form);
+                }
+                catch (Exception ex)
+                {
+                    Log($"Render API dialog exception: {ex}");
+                }
+                return;
+            }
+
             Log("=== EarthWallpaper Starting (Main Thread) ===");
 
             // 1. Immediately back up user's active wallpaper before touching desktop
