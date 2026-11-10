@@ -20,6 +20,12 @@ namespace EarthWallpaper
         [DllImport("user32.dll", SetLastError = true)]
         public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        public static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder lpClassName, int nMaxCount);
+
+        [DllImport("user32.dll")]
+        public static extern bool RedrawWindow(IntPtr hWnd, IntPtr lprcUpdate, IntPtr hrgnUpdate, uint flags);
+
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
@@ -225,11 +231,98 @@ namespace EarthWallpaper
             return true;
         }
 
+        private static readonly string BackupFilePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "EarthWallpaper", "original_wallpaper_backup.png");
+
+        public static void BackupOriginalWallpaper()
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(BackupFilePath)!;
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                // If a verified backup already exists (> 50KB), preserve it
+                if (File.Exists(BackupFilePath) && new FileInfo(BackupFilePath).Length > 50000)
+                {
+                    Program.Log($"DesktopWorker: Original wallpaper backup verified: {BackupFilePath}");
+                    return;
+                }
+
+                // Check 1: Windows active transcoded wallpaper
+                string transcoded = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    @"Microsoft\Windows\Themes\TranscodedWallpaper");
+                if (File.Exists(transcoded) && new FileInfo(transcoded).Length > 1000)
+                {
+                    File.Copy(transcoded, BackupFilePath, true);
+                    Program.Log($"DesktopWorker: Backed up TranscodedWallpaper ({new FileInfo(BackupFilePath).Length} bytes) to {BackupFilePath}");
+                    return;
+                }
+
+                // Check 2: Registry TranscodedImageCache
+                try
+                {
+                    var cache = Registry.GetValue(@"HKEY_CURRENT_USER\Control Panel\Desktop", "TranscodedImageCache", null) as byte[];
+                    if (cache != null && cache.Length > 24)
+                    {
+                        string decoded = System.Text.Encoding.Unicode.GetString(cache, 24, cache.Length - 24).Trim('\0');
+                        if (File.Exists(decoded))
+                        {
+                            File.Copy(decoded, BackupFilePath, true);
+                            Program.Log($"DesktopWorker: Backed up from TranscodedImageCache ({decoded}) to {BackupFilePath}");
+                            return;
+                        }
+                    }
+                }
+                catch { }
+
+                // Check 3: Registry Wallpaper path
+                string? regWall = Registry.GetValue(@"HKEY_CURRENT_USER\Control Panel\Desktop", "Wallpaper", "") as string;
+                if (!string.IsNullOrEmpty(regWall) && File.Exists(regWall))
+                {
+                    File.Copy(regWall, BackupFilePath, true);
+                    Program.Log($"DesktopWorker: Backed up from Registry Wallpaper ({regWall}) to {BackupFilePath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Program.Log($"DesktopWorker: BackupOriginalWallpaper error: {ex.Message}");
+            }
+        }
+
         public static void RestoreOriginalWallpaper()
         {
             try
             {
-                // 1. Ensure desktop icons are restored visible if previously hidden
+                Program.Log("DesktopWorker: Restoring original desktop state...");
+
+                // 1. Close / Hide spawned WorkerW so it doesn't mask the wallpaper
+                if (WorkerWHandle != IntPtr.Zero)
+                {
+                    ShowWindow(WorkerWHandle, 0 /* SW_HIDE */);
+                    SendMessage(WorkerWHandle, 0x0010 /* WM_CLOSE */, IntPtr.Zero, IntPtr.Zero);
+                    WorkerWHandle = IntPtr.Zero;
+                }
+
+                // 2. Hide any orphaned blank WorkerW windows created by 0x052C
+                EnumWindows((hWnd, lParam) =>
+                {
+                    var sb = new System.Text.StringBuilder(256);
+                    GetClassName(hWnd, sb, 256);
+                    if (sb.ToString() == "WorkerW")
+                    {
+                        IntPtr defView = FindWindowEx(hWnd, IntPtr.Zero, "SHELLDLL_DefView", null);
+                        if (defView == IntPtr.Zero)
+                        {
+                            ShowWindow(hWnd, 0 /* SW_HIDE */);
+                            SendMessage(hWnd, 0x0010 /* WM_CLOSE */, IntPtr.Zero, IntPtr.Zero);
+                        }
+                    }
+                    return true;
+                }, IntPtr.Zero);
+
+                // 3. Ensure desktop icons are restored visible if previously hidden
                 IntPtr shellView = GetShellViewHandle();
                 if (shellView != IntPtr.Zero)
                 {
@@ -241,24 +334,46 @@ namespace EarthWallpaper
                     }
                 }
 
-                // 2. High-priority fallback: Windows active transcoded wallpaper cache
-                string transcoded = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), @"Microsoft\Windows\Themes\TranscodedWallpaper");
-                string? wallpaper = Registry.GetValue(@"HKEY_CURRENT_USER\Control Panel\Desktop", "Wallpaper", "") as string;
-
+                // 4. Resolve verified original wallpaper path (MUST have an image extension!)
                 string target = "";
-                if (File.Exists(transcoded))
+                if (File.Exists(BackupFilePath) && new FileInfo(BackupFilePath).Length > 1000)
                 {
-                    target = transcoded;
+                    target = BackupFilePath;
                 }
-                else if (!string.IsNullOrEmpty(wallpaper) && File.Exists(wallpaper))
+                else
                 {
-                    target = wallpaper;
+                    string fallbackLocal = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "original_wallpaper.png");
+                    if (File.Exists(fallbackLocal)) target = Path.GetFullPath(fallbackLocal);
+                }
+
+                if (string.IsNullOrEmpty(target) || !File.Exists(target))
+                {
+                    // Fallback to TranscodedWallpaper by copying with .png extension
+                    string transcoded = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                        @"Microsoft\Windows\Themes\TranscodedWallpaper");
+                    if (File.Exists(transcoded))
+                    {
+                        string safeCopy = Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                            "EarthWallpaper", "TranscodedWallpaper_safe.png");
+                        File.Copy(transcoded, safeCopy, true);
+                        target = safeCopy;
+                    }
                 }
 
                 Program.Log($"DesktopWorker: Restoring original wallpaper target: {target}");
-                if (!string.IsNullOrEmpty(target))
+                if (!string.IsNullOrEmpty(target) && File.Exists(target))
                 {
-                    SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, target, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+                    int res = SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, target, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+                    Program.Log($"DesktopWorker: SystemParametersInfo applied result = {res}");
+                }
+
+                // 5. Force Progman / Desktop redraw
+                IntPtr progman = FindWindow("Progman", null);
+                if (progman != IntPtr.Zero)
+                {
+                    RedrawWindow(progman, IntPtr.Zero, IntPtr.Zero, 0x0185 /* RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW */);
                 }
             }
             catch (Exception ex)

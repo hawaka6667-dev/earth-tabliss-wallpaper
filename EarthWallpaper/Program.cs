@@ -37,6 +37,9 @@ namespace EarthWallpaper
         {
             Log("=== EarthWallpaper Starting (Main Thread) ===");
 
+            // 1. Immediately back up user's active wallpaper before touching desktop
+            DesktopWorker.BackupOriginalWallpaper();
+
             const string appName = "EarthTablissLiveWallpaper_SingleInstanceMutex";
             _mutex = new Mutex(true, appName, out bool createdNew);
 

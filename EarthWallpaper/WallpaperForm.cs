@@ -312,8 +312,19 @@ namespace EarthWallpaper
             _petForm?.NotifyLocationChanged(loc);
         }
 
+        private bool _isExiting = false;
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            base.OnFormClosing(e);
+            ExitApplication();
+        }
+
         private void ExitApplication()
         {
+            if (_isExiting) return;
+            _isExiting = true;
+
             _powerGovernor?.Dispose();
             if (_trayIcon != null)
             {
@@ -321,6 +332,17 @@ namespace EarthWallpaper
                 _trayIcon.Dispose();
             }
             _petForm?.Dispose();
+
+            // Detach window from WorkerW before destroying
+            if (_isDesktopAttached)
+            {
+                try
+                {
+                    DesktopWorker.SetParent(Handle, IntPtr.Zero);
+                    DesktopWorker.ShowWindow(Handle, 0 /* SW_HIDE */);
+                }
+                catch { }
+            }
 
             // Always restore original Windows wallpaper on exit
             DesktopWorker.RestoreOriginalWallpaper();
