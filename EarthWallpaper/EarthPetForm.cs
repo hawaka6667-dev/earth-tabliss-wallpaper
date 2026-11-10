@@ -19,6 +19,7 @@ namespace EarthWallpaper
         private readonly WallpaperForm _wallpaperForm;
         private PetMenuForm? _menuForm;
         private GeminiHubForm? _hubForm;
+        private PetBubbleForm? _bubbleForm;
         private ToolTip? _petTooltip;
 
         private bool _isMouseDown = false;
@@ -72,13 +73,15 @@ namespace EarthWallpaper
 
             Invalidate();
             string name = GetSkinDisplayName();
-            _petTooltip?.Show($"✨ 桌宠外观已切换: {name}", this, Width / 2, -50, 3000);
+            _bubbleForm?.ShowNotificationBubble("✨ 外观切换完成", name);
         }
 
         public string GetSkinDisplayName()
         {
             return CurrentSkin == PetSkin.ClassicOrb ? "初版天体核心" : "O.R.B. 测绘机";
         }
+
+        public void OpenHub() => OpenGeminiHub(false);
 
         private void InitializeComponent()
         {
@@ -99,12 +102,12 @@ namespace EarthWallpaper
             _petTooltip = new ToolTip
             {
                 BackColor = Color.FromArgb(15, 23, 42),
-                ForeColor = Color.FromArgb(56, 189, 248),
-                InitialDelay = 400,
-                AutoPopDelay = 6000,
-                IsBalloon = true
+                ForeColor = Color.FromArgb(241, 245, 249),
+                InitialDelay = 500,
+                AutoPopDelay = 4000,
+                IsBalloon = false // Never use Win32 balloon tooltip
             };
-            _petTooltip.SetToolTip(this, "🌍 小地球桌宠\n点击唤起中枢，拖拽可自由漫游\n⭐ 可收藏地标或与 Gemini 对话");
+            _petTooltip.SetToolTip(this, "🌍 小地球桌宠 (点击唤起控制中枢)");
 
             MouseDown += OnPetMouseDown;
             MouseMove += OnPetMouseMove;
@@ -140,6 +143,9 @@ namespace EarthWallpaper
             // 1. Never minimizes on "Show Desktop" (Win+D)
             // 2. Never floats above user application windows (Chrome, VS Code, etc.)
             DesktopWorker.AttachPetToDesktop(Handle);
+
+            _bubbleForm = new PetBubbleForm(this);
+            _bubbleForm.CreateControl();
         }
 
         public void NotifyLocationChanged(LocationInfo? loc)
@@ -153,8 +159,8 @@ namespace EarthWallpaper
                 {
                     BeginInvoke(new Action(() =>
                     {
-                        string status = BookmarkManager.IsBookmarked(loc.Lat, loc.Lng) ? "★ 已收藏" : "⭐ 未收藏";
-                        _petTooltip?.Show($"🌍 漫游至新地标:\n{loc.GetDisplayName()}\n[{status}] (点击桌宠可收藏/提问)", this, Width / 2, -60, 4500);
+                        bool isBookmarked = BookmarkManager.IsBookmarked(loc.Lat, loc.Lng);
+                        _bubbleForm?.ShowLandmarkBubble(loc.GetDisplayName(), isBookmarked);
                     }));
                 }
             }
@@ -169,6 +175,7 @@ namespace EarthWallpaper
                 _isDragging = false;
                 _mouseDownLocation = Location;
                 _dragStartCursor = Cursor.Position;
+                _bubbleForm?.Hide();
             }
         }
 
@@ -184,6 +191,7 @@ namespace EarthWallpaper
                 {
                     _isDragging = true;
                     Cursor = Cursors.SizeAll;
+                    _bubbleForm?.Hide();
                     if (_menuForm != null && _menuForm.Visible)
                     {
                         _menuForm.Hide();
@@ -420,6 +428,7 @@ namespace EarthWallpaper
             {
                 _menuForm?.Dispose();
                 _hubForm?.Dispose();
+                _bubbleForm?.Dispose();
                 _petTooltip?.Dispose();
             }
             base.Dispose(disposing);
