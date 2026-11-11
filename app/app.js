@@ -27,6 +27,8 @@
     locations: [],
     currentIndex: -1,
     preloadQueue: [], // Preloaded buffer queue [{ item, img }]
+    historyStack: [], // Previous wallpaper history (max 20)
+    _skipHistory: false,
     loadingCount: 0,
     maxQueueSize: 4,
     localFallbackIndex: 0,
@@ -148,6 +150,14 @@
   // 4. Apply Wallpaper & Double-Buffer Crossfade (0ms switch, zero black screen)
   function applyWallpaper(item) {
     if (!item) return;
+
+    // Push current to history stack (unless navigating backwards)
+    if (!state._skipHistory && state.currentLocation) {
+      state.historyStack.push(state.currentLocation);
+      if (state.historyStack.length > 20) state.historyStack.shift();
+    }
+    state._skipHistory = false;
+
     state.currentLocation = item;
     if (!item.coords) item.coords = parseCoordinates(item.map);
 
@@ -236,6 +246,13 @@
     testImg.src = candidate.image;
   }
 
+  function previousWallpaper() {
+    if (state.historyStack.length === 0) return; // Nothing in history
+    const prev = state.historyStack.pop();
+    state._skipHistory = true; // Don't re-push to history when going back
+    applyWallpaper(prev);
+  }
+
   async function loadEarthLocations() {
     try {
       const resp = await fetch('data/earthview.json');
@@ -287,6 +304,8 @@
       if (!msg) return;
       if (msg.type === 'next_wallpaper') {
         nextWallpaper();
+      } else if (msg.type === 'previous_wallpaper') {
+        previousWallpaper();
       } else if (msg.type === 'toggle_hud') {
         toggleHud(msg.visible);
       } else if (msg.type === 'open_gemini') {

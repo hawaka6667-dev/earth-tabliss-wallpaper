@@ -561,7 +561,7 @@ namespace EarthWallpaper
                     BackColor = Color.FromArgb(15, 23, 42),
                     FlatStyle = FlatStyle.Flat,
                     Size = new Size(92, 32),
-                    Location = new Point(pnlCard.Width - 248, 18),
+                    Location = new Point(pnlCard.Width - 316, 18),
                     Cursor = Cursors.Hand
                 };
                 btnApply.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
@@ -579,6 +579,24 @@ namespace EarthWallpaper
                     MessageBox.Show($"已将壁纸切换至: {item.GetDisplayName()}", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 };
 
+                var btnOpenEarth = new Button
+                {
+                    Text = "🌍 3D",
+                    Font = new Font("Segoe UI", 9f, FontStyle.Regular),
+                    ForeColor = Color.FromArgb(52, 211, 153),
+                    BackColor = Color.FromArgb(15, 23, 42),
+                    FlatStyle = FlatStyle.Flat,
+                    Size = new Size(68, 32),
+                    Location = new Point(pnlCard.Width - 212, 18),
+                    Cursor = Cursors.Hand
+                };
+                btnOpenEarth.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
+                btnOpenEarth.Click += (s, e) =>
+                {
+                    var url = $"https://earth.google.com/web/@{item.Lat},{item.Lng},1000a,35y,0h,0t,0r";
+                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+                };
+
                 var btnAskThis = new Button
                 {
                     Text = "向AI提问",
@@ -586,8 +604,8 @@ namespace EarthWallpaper
                     ForeColor = Color.FromArgb(165, 180, 252),
                     BackColor = Color.FromArgb(15, 23, 42),
                     FlatStyle = FlatStyle.Flat,
-                    Size = new Size(92, 32),
-                    Location = new Point(pnlCard.Width - 148, 18),
+                    Size = new Size(84, 32),
+                    Location = new Point(pnlCard.Width - 134, 18),
                     Cursor = Cursors.Hand
                 };
                 btnAskThis.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
@@ -628,6 +646,7 @@ namespace EarthWallpaper
                 pnlCard.Controls.Add(lblName);
                 pnlCard.Controls.Add(lblCoords);
                 pnlCard.Controls.Add(btnApply);
+                pnlCard.Controls.Add(btnOpenEarth);
                 pnlCard.Controls.Add(btnAskThis);
                 pnlCard.Controls.Add(btnDelete);
 

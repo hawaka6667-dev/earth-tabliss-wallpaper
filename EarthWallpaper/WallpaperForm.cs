@@ -58,6 +58,7 @@ namespace EarthWallpaper
             
             var itemIcons = new ToolStripMenuItem("👁 显隐桌面图标", null, (s, e) => DesktopWorker.ToggleDesktopIcons());
             var itemNext = new ToolStripMenuItem("⏭ 下一张地球壁纸", null, (s, e) => SendWebMessage("next_wallpaper"));
+            var itemPrev = new ToolStripMenuItem("⏮ 上一张地球壁纸", null, (s, e) => SendWebMessage("previous_wallpaper"));
             var itemBookmarks = new ToolStripMenuItem("⭐ 我的地标收藏夹", null, (s, e) => _petForm?.OpenGeminiHub(true));
             var itemGemini = new ToolStripMenuItem("✨ Ask Gemini 地貌研判", null, (s, e) => _petForm?.OpenGeminiHub(false));
             
@@ -77,6 +78,7 @@ namespace EarthWallpaper
             menu.Items.AddRange(new ToolStripItem[] {
                 itemIcons,
                 itemNext,
+                itemPrev,
                 new ToolStripSeparator(),
                 itemBookmarks,
                 itemGemini,
