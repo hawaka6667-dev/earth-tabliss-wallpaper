@@ -73,6 +73,18 @@ namespace EarthWallpaper
             });
 
             var itemReload = new ToolStripMenuItem("🔄 重载 / 重启应用 (Reload)", null, (s, e) => RestartApplication());
+            
+            var itemStartup = new ToolStripMenuItem { Text = "🚀 开机自启" };
+            itemStartup.Checked = IsStartupEnabled();
+            itemStartup.Text = itemStartup.Checked ? "🚀 开机自启 (已开启)" : "🚀 开机自启 (未开启)";
+            itemStartup.Click += (s, e) =>
+            {
+                bool newState = !itemStartup.Checked;
+                SetStartupEnabled(newState);
+                itemStartup.Checked = newState;
+                itemStartup.Text = newState ? "🚀 开机自启 (已开启)" : "🚀 开机自启 (未开启)";
+            };
+
             var itemExit = new ToolStripMenuItem("🚪 退出 Earth Tabliss (恢复原壁纸)", null, (s, e) => ExitApplication());
 
             menu.Items.AddRange(new ToolStripItem[] {
@@ -84,6 +96,7 @@ namespace EarthWallpaper
                 itemGemini,
                 itemSkin,
                 new ToolStripSeparator(),
+                itemStartup,
                 itemReload,
                 itemExit
             });
@@ -144,6 +157,54 @@ namespace EarthWallpaper
             catch (Exception ex)
             {
                 Program.Log($"RestartApplication error: {ex.Message}");
+            }
+        }
+
+        private const string RunRegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+        private const string AppStartupName = "EarthTabliss";
+
+        private static bool IsStartupEnabled()
+        {
+            try
+            {
+                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunRegistryKey, false);
+                return key?.GetValue(AppStartupName) != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void SetStartupEnabled(bool enable)
+        {
+            try
+            {
+                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunRegistryKey, true);
+                if (key == null) return;
+
+                if (enable)
+                {
+                    string startBat = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "start.bat"));
+                    if (!File.Exists(startBat)) startBat = @"F:\antigravity\earth屏保\start.bat";
+
+                    if (File.Exists(startBat))
+                    {
+                        key.SetValue(AppStartupName, $"\"{startBat}\"");
+                    }
+                    else
+                    {
+                        key.SetValue(AppStartupName, $"\"{Application.ExecutablePath}\"");
+                    }
+                }
+                else
+                {
+                    key.DeleteValue(AppStartupName, false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Program.Log($"SetStartupEnabled error: {ex.Message}");
             }
         }
 
