@@ -163,6 +163,12 @@ namespace EarthWallpaper
                         _bubbleForm?.ShowLandmarkBubble(loc.GetDisplayName(), isBookmarked);
                     }));
                 }
+                else
+                {
+                    // Fallback when handle is not created yet
+                    bool isBookmarked = BookmarkManager.IsBookmarked(loc.Lat, loc.Lng);
+                    _bubbleForm?.ShowLandmarkBubble(loc.GetDisplayName(), isBookmarked);
+                }
             }
             catch { }
         }

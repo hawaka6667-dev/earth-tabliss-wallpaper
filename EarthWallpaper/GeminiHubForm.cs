@@ -39,6 +39,10 @@ namespace EarthWallpaper
 
         private List<(string role, string text)> _chatHistory = new();
 
+        // Drag window state
+        private bool _isDraggingForm = false;
+        private Point _dragStartPoint;
+
         public GeminiHubForm(WallpaperForm wallpaperForm, LocationInfo location, bool openToBookmarks = false)
         {
             _wallpaperForm = wallpaperForm;
@@ -74,6 +78,30 @@ namespace EarthWallpaper
                 Dock = DockStyle.Top,
                 Height = 52,
                 BackColor = Color.FromArgb(30, 41, 59)
+            };
+
+            pnlTopNav.MouseDown += (s, e) =>
+            {
+                if (e.Button == MouseButtons.Left)
+                {
+                    _isDraggingForm = true;
+                    _dragStartPoint = new Point(e.X, e.Y);
+                }
+            };
+            pnlTopNav.MouseMove += (s, e) =>
+            {
+                if (_isDraggingForm)
+                {
+                    Point p = PointToScreen(e.Location);
+                    Location = new Point(p.X - _dragStartPoint.X, p.Y - _dragStartPoint.Y);
+                }
+            };
+            pnlTopNav.MouseUp += (s, e) =>
+            {
+                if (e.Button == MouseButtons.Left)
+                {
+                    _isDraggingForm = false;
+                }
             };
 
             var lblLogo = new Label

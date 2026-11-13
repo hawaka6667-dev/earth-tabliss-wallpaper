@@ -30,11 +30,14 @@
     historyStack: [], // Previous wallpaper history (max 20)
     _skipHistory: false,
     loadingCount: 0,
-    maxQueueSize: 4,
+    maxQueueSize: 5,
     localFallbackIndex: 0,
     activeLayer: 'a',
     isHudVisible: true,
-    currentLocation: LOCAL_FALLBACKS[1]
+    currentLocation: LOCAL_FALLBACKS[1],
+    visitedIds: new Set(),
+    shuffledIndices: [],
+    shufflePtr: 0
   };
 
   // Immediate queue seeding with local offline assets so queue length is > 0 from millisecond 0
@@ -108,40 +111,67 @@
   }
 
   // 3. Preload Queue Buffer Engine (Handles Initial Load & Rapid Continuous Next Requests)
+  function initShuffleDeck() {
+    if (!state.locations || state.locations.length === 0) return;
+    state.shuffledIndices = Array.from({ length: state.locations.length }, (_, i) => i);
+    // Fisher-Yates shuffle
+    for (let i = state.shuffledIndices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = state.shuffledIndices[i];
+      state.shuffledIndices[i] = state.shuffledIndices[j];
+      state.shuffledIndices[j] = tmp;
+    }
+    state.shufflePtr = 0;
+  }
+
+  function getNextCandidate() {
+    if (!state.locations || state.locations.length === 0) return null;
+    if (state.shuffledIndices.length === 0 || state.shufflePtr >= state.shuffledIndices.length) {
+      initShuffleDeck();
+    }
+    const idx = state.shuffledIndices[state.shufflePtr++];
+    return state.locations[idx];
+  }
+
   function fillPreloadQueue() {
     if (!state.locations || state.locations.length === 0) return;
 
     while (state.preloadQueue.length + state.loadingCount < state.maxQueueSize) {
+      const candidate = getNextCandidate();
+      if (!candidate || !candidate.image) break;
+
       state.loadingCount++;
-      state.currentIndex = (state.currentIndex + 1) % state.locations.length;
-      const candidate = state.locations[state.currentIndex];
-
-      if (!candidate || !candidate.image) {
-        state.loadingCount--;
-        break;
-      }
-
       candidate.coords = parseCoordinates(candidate.map);
       const img = new Image();
 
-      img.onload = () => {
+      let resolved = false;
+      const onDone = (success) => {
+        if (resolved) return;
+        resolved = true;
         state.loadingCount--;
-        state.preloadQueue.push({ item: candidate, img: img });
-
+        if (success) {
+          state.preloadQueue.push({ item: candidate, img: img });
+        } else {
+          // If remote image fails, only fallback to offline asset if queue is completely empty
+          if (state.preloadQueue.length === 0) {
+            const fallback = LOCAL_FALLBACKS[state.localFallbackIndex++ % LOCAL_FALLBACKS.length];
+            const fImg = new Image();
+            fImg.src = fallback.image;
+            state.preloadQueue.push({ item: fallback, img: fImg });
+          }
+        }
         if (state.preloadQueue.length + state.loadingCount < state.maxQueueSize) {
           fillPreloadQueue();
         }
       };
 
-      img.onerror = () => {
-        state.loadingCount--;
-        // Push local fallback on error so queue is never starved
-        const fallback = LOCAL_FALLBACKS[state.localFallbackIndex++ % LOCAL_FALLBACKS.length];
-        const fImg = new Image();
-        fImg.src = fallback.image;
-        state.preloadQueue.push({ item: fallback, img: fImg });
-        fillPreloadQueue();
-      };
+      img.onload = () => onDone(true);
+      img.onerror = () => onDone(false);
+
+      // Network safety guard: 8s abort so a hanging request doesn't clog the slot
+      setTimeout(() => {
+        if (!resolved) onDone(false);
+      }, 8000);
 
       img.src = candidate.image;
     }
@@ -257,7 +287,8 @@
     try {
       const resp = await fetch('data/earthview.json');
       state.locations = await resp.json();
-      state.currentIndex = Math.floor(Math.random() * state.locations.length);
+      initShuffleDeck();
+      // Drop initial offline placeholders once real remote images arrive in queue
       fillPreloadQueue();
     } catch (err) {
       console.error('[EarthWallpaper] Failed to load earthview.json:', err);

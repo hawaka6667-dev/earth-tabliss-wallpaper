@@ -156,12 +156,6 @@ namespace EarthWallpaper
             }
         }
 
-        protected override void OnHandleCreated(EventArgs e)
-        {
-            base.OnHandleCreated(e);
-            DesktopWorker.AttachPetToDesktop(Handle);
-        }
-
         public void ShowLandmarkBubble(string locationName, bool isBookmarked)
         {
             _titleIcon = "🌍";
@@ -217,6 +211,7 @@ namespace EarthWallpaper
             {
                 DesktopWorker.ShowWindow(Handle, 4 /* SW_SHOWNOACTIVATE */);
             }
+            DesktopWorker.SetWindowPos(Handle, (IntPtr)(-1) /* HWND_TOPMOST */, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010 /* SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE */);
             Invalidate();
         }
 

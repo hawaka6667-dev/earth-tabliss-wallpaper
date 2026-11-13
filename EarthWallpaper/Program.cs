@@ -100,6 +100,22 @@ namespace EarthWallpaper
 
             if (!createdNew)
             {
+                // Give up to 1500ms for a restarting/terminating previous instance to cleanly exit
+                try
+                {
+                    if (_mutex.WaitOne(1500, false))
+                    {
+                        createdNew = true;
+                    }
+                }
+                catch (AbandonedMutexException)
+                {
+                    createdNew = true;
+                }
+            }
+
+            if (!createdNew)
+            {
                 Log("Another instance is already running.");
                 MessageBox.Show("Earth Tabliss 已经在运行中！\n请查看桌面最底层或屏幕右下角托盘图标。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
