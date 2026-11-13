@@ -37,10 +37,25 @@ namespace EarthWallpaper
         public static string PrevAction => IsChinese ? "⏮️ 上张" : "⏮️ Prev";
 
         // Hub Navigation Tabs
-        public static string TabAskGemini => IsChinese ? "💬 Ask Gemini" : "💬 Ask Gemini";
+        public static string TabAskGemini => "💬 Ask Gemini";
         public static string TabBookmarks => IsChinese ? "⭐ 地标收藏夹" : "⭐ Bookmarks Hub";
         public static string TabDevTelemetry => IsChinese ? "🛠️ 开发者模式" : "🛠️ Dev Telemetry";
         public static string TabApiSettings => IsChinese ? "🔑 API 设置" : "🔑 API Settings";
+
+        // Category Management
+        public static string BtnAddCategory => IsChinese ? "+ 新建分类" : "+ New Category";
+        public static string PromptNewCategoryTitle => IsChinese ? "新建收藏分类" : "New Category";
+        public static string PromptNewCategoryMessage => IsChinese ? "请输入新分类/文件夹名称 (如: 城市、荒漠、水系、震撼):" : "Enter a new category or folder name:";
+        public static string PromptEditCategoryTitle => IsChinese ? "修改所属分类" : "Edit Category";
+        public static string PromptEditCategoryMessage => IsChinese ? "请输入新的所属分类/文件夹:" : "Enter category name:";
+        public static string CatAll => IsChinese ? "全部" : "All";
+        public static string CatDefault => IsChinese ? "默认" : "Default";
+        public static string CatCity => IsChinese ? "城市" : "Cities";
+        public static string CatDesert => IsChinese ? "荒漠" : "Deserts";
+        public static string CatRiver => IsChinese ? "水系" : "Rivers";
+        public static string CatFav => IsChinese ? "精选" : "Favorites";
+        public static string DialogOk => IsChinese ? "确定" : "OK";
+        public static string DialogCancel => IsChinese ? "取消" : "Cancel";
 
         // Gemini Q&A
         public static string ApiKeyMissingNotice => IsChinese 

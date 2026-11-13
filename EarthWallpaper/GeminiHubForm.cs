@@ -563,7 +563,7 @@ namespace EarthWallpaper
 
             var btnAddCategory = new Button
             {
-                Text = "+ 新建分类",
+                Text = L10n.BtnAddCategory,
                 Font = new Font("Segoe UI", 8.8f),
                 ForeColor = Color.FromArgb(56, 189, 248),
                 BackColor = Color.FromArgb(30, 41, 59),
@@ -603,10 +603,12 @@ namespace EarthWallpaper
 
         private void PromptCreateCategory()
         {
-            string cat = PromptInput("新建收藏分类", "请输入新分类/文件夹名称 (如: 城市、荒漠、水系、震撼):", "");
+            string cat = PromptInput(L10n.PromptNewCategoryTitle, L10n.PromptNewCategoryMessage, "");
             if (!string.IsNullOrWhiteSpace(cat))
             {
-                _selectedCategory = cat.Trim();
+                string trimmed = cat.Trim();
+                BookmarkManager.AddCustomCategory(trimmed);
+                _selectedCategory = trimmed;
                 RefreshBookmarksList();
             }
         }
@@ -772,7 +774,7 @@ namespace EarthWallpaper
                 btnMoveCat.FlatAppearance.BorderSize = 0;
                 btnMoveCat.Click += (s, e) =>
                 {
-                    string newCat = PromptInput("修改分类", "请输入新的所属分类/文件夹:", item.Category);
+                    string newCat = PromptInput(L10n.PromptEditCategoryTitle, L10n.PromptEditCategoryMessage, item.Category);
                     if (!string.IsNullOrWhiteSpace(newCat))
                     {
                         BookmarkManager.UpdateCategory(item.Id, newCat);
@@ -1256,8 +1258,8 @@ namespace EarthWallpaper
 
             var lbl = new Label { Left = 20, Top = 16, Width = 360, Height = 36, Text = prompt, ForeColor = Color.FromArgb(226, 232, 240) };
             var txt = new TextBox { Left = 20, Top = 58, Width = 360, Text = defaultVal, BackColor = Color.FromArgb(30, 41, 59), ForeColor = Color.White };
-            var btnOk = new Button { Text = "确定", Left = 200, Top = 96, Width = 84, Height = 28, DialogResult = DialogResult.OK, BackColor = Color.FromArgb(56, 189, 248), ForeColor = Color.Black, FlatStyle = FlatStyle.Flat };
-            var btnCancel = new Button { Text = "取消", Left = 296, Top = 96, Width = 84, Height = 28, DialogResult = DialogResult.Cancel, BackColor = Color.FromArgb(51, 65, 85), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            var btnOk = new Button { Text = L10n.DialogOk, Left = 200, Top = 96, Width = 84, Height = 28, DialogResult = DialogResult.OK, BackColor = Color.FromArgb(56, 189, 248), ForeColor = Color.Black, FlatStyle = FlatStyle.Flat };
+            var btnCancel = new Button { Text = L10n.DialogCancel, Left = 296, Top = 96, Width = 84, Height = 28, DialogResult = DialogResult.Cancel, BackColor = Color.FromArgb(51, 65, 85), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
 
             form.Controls.Add(lbl);
             form.Controls.Add(txt);

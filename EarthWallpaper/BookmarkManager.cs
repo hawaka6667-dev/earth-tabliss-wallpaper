@@ -36,10 +36,29 @@ namespace EarthWallpaper
             "bookmarks.json"
         );
 
+        private static readonly string CategoriesPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "EarthWallpaper",
+            "categories.json"
+        );
+
         private static List<BookmarkItem> _items = new();
+        private static HashSet<string> _customCategories = new(StringComparer.OrdinalIgnoreCase);
         private static bool _loaded = false;
 
         public static event Action? OnBookmarksChanged;
+
+        public static void AddCustomCategory(string category)
+        {
+            if (string.IsNullOrWhiteSpace(category)) return;
+            EnsureLoaded();
+            string trimmed = category.Trim();
+            if (_customCategories.Add(trimmed))
+            {
+                SaveCategories();
+                OnBookmarksChanged?.Invoke();
+            }
+        }
 
         public static List<BookmarkItem> GetAll()
         {
@@ -108,7 +127,24 @@ namespace EarthWallpaper
         public static List<string> GetAllCategories()
         {
             EnsureLoaded();
-            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "全部", "默认", "城市", "荒地", "河流", "好看" };
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase) 
+            { 
+                L10n.CatAll, 
+                L10n.CatDefault, 
+                L10n.CatCity, 
+                L10n.CatDesert, 
+                L10n.CatRiver, 
+                L10n.CatFav 
+            };
+
+            foreach (var custom in _customCategories)
+            {
+                if (!string.IsNullOrWhiteSpace(custom))
+                {
+                    set.Add(custom.Trim());
+                }
+            }
+
             foreach (var b in _items)
             {
                 if (!string.IsNullOrWhiteSpace(b.Category))
@@ -142,9 +178,34 @@ namespace EarthWallpaper
                     string json = File.ReadAllText(StoragePath);
                     _items = JsonSerializer.Deserialize<List<BookmarkItem>>(json) ?? new();
                 }
+
+                if (File.Exists(CategoriesPath))
+                {
+                    string catJson = File.ReadAllText(CategoriesPath);
+                    var list = JsonSerializer.Deserialize<List<string>>(catJson);
+                    if (list != null)
+                    {
+                        foreach (var c in list) _customCategories.Add(c);
+                    }
+                }
             }
             catch { _items = new(); }
             _loaded = true;
+        }
+
+        private static void SaveCategories()
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(CategoriesPath)!;
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                string json = JsonSerializer.Serialize(new List<string>(_customCategories), new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(CategoriesPath, json);
+            }
+            catch (Exception ex)
+            {
+                Program.Log($"BookmarkManager.SaveCategories failed: {ex.Message}");
+            }
         }
 
         private static void Save()
