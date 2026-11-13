@@ -133,6 +133,7 @@
         state.loadingCount--;
         if (success) {
           state.preloadQueue.push({ item: candidate, img: img });
+          sendQueueStatus();
         }
         // If one fails or succeeds, keep queue full
         if (state.preloadQueue.length + state.loadingCount < state.maxQueueSize) {
@@ -197,6 +198,7 @@
           image: item.image || ''
         }
       });
+      sendQueueStatus();
     }
   }
 
@@ -277,14 +279,14 @@
           fillPreloadQueue();
         };
 
-        // 2.5s network timeout on startup
+        // Network timeout guard: do NOT force-apply unloaded image to prevent black screen / "穿帮"
         setTimeout(() => {
           if (!loaded) {
             loaded = true;
-            applyWallpaper(firstCandidate);
+            // Keep default offline earth wallpaper seamlessly; fill queue in background
             fillPreloadQueue();
           }
-        }, 2500);
+        }, 8000);
 
         fImg.src = firstCandidate.image;
       } else {
@@ -327,6 +329,43 @@
     el.drawerGemini.classList.remove('open');
   }
 
+  function sendQueueStatus() {
+    if (window.chrome && window.chrome.webview) {
+      window.chrome.webview.postMessage({
+        type: 'queue_status',
+        data: {
+          queueLength: state.preloadQueue.length,
+          loadingCount: state.loadingCount,
+          maxQueueSize: state.maxQueueSize,
+          historyLength: state.historyStack.length,
+          shufflePtr: state.shufflePtr,
+          totalLocations: state.locations ? state.locations.length : 0,
+          currentLocation: state.currentLocation ? {
+            country: state.currentLocation.country || '',
+            region: state.currentLocation.region || '',
+            lat: state.currentLocation.coords ? state.currentLocation.coords.lat : '0.000000',
+            lng: state.currentLocation.coords ? state.currentLocation.coords.lng : '0.000000',
+            image: state.currentLocation.image || ''
+          } : null,
+          queuedItems: state.preloadQueue.map(q => ({
+            country: q.item.country || '',
+            region: q.item.region || '',
+            lat: q.item.coords ? q.item.coords.lat : '0.000000',
+            lng: q.item.coords ? q.item.coords.lng : '0.000000',
+            image: q.item.image || ''
+          })),
+          historyItems: state.historyStack.slice(-10).map(h => ({
+            country: h.country || '',
+            region: h.region || '',
+            lat: h.coords ? h.coords.lat : '0.000000',
+            lng: h.coords ? h.coords.lng : '0.000000',
+            image: h.image || ''
+          }))
+        }
+      });
+    }
+  }
+
   // 6. IPC Communication with C# WinForms Host
   if (window.chrome && window.chrome.webview) {
     window.chrome.webview.addEventListener('message', (event) => {
@@ -337,6 +376,22 @@
         nextWallpaper();
       } else if (msg.type === 'previous_wallpaper') {
         previousWallpaper();
+      } else if (msg.type === 'request_queue_status') {
+        sendQueueStatus();
+      } else if (msg.type === 'reshuffle_deck') {
+        initShuffleDeck();
+        sendQueueStatus();
+      } else if (msg.type === 'flush_queue') {
+        state.preloadQueue = [];
+        fillPreloadQueue();
+        sendQueueStatus();
+      } else if (msg.type === 'apply_queued_item') {
+        const idx = typeof msg.index === 'number' ? msg.index : 0;
+        if (idx >= 0 && idx < state.preloadQueue.length) {
+          const chosen = state.preloadQueue.splice(idx, 1)[0];
+          applyWallpaper(chosen.item);
+          fillPreloadQueue();
+        }
       } else if (msg.type === 'power_state') {
         if (msg.data === 'battery') {
           console.log('[Engine] Power governor: Battery detected, zero animation guaranteed.');

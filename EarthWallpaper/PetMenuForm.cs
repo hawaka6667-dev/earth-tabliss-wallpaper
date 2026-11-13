@@ -36,7 +36,7 @@ namespace EarthWallpaper
             StartPosition = FormStartPosition.Manual;
             TopMost = true;
             DoubleBuffered = true;
-            Size = new Size(290, 360);
+            Size = new Size(290, 395);
             BackColor = Color.FromArgb(15, 23, 42); // Slate 900
             ForeColor = Color.FromArgb(241, 245, 249);
 
@@ -140,6 +140,14 @@ namespace EarthWallpaper
             });
             btnY += btnHeight + btnSpacing;
 
+            // Dev Queue Monitor
+            var btnDev = CreateMenuButton("🛠️ 开发者 / 队列监控", 12, btnY, Color.FromArgb(148, 163, 184), (s, e) =>
+            {
+                Hide();
+                _petForm.OpenGeminiHub(false, true);
+            });
+            btnY += btnHeight + btnSpacing;
+
             // Exit
             var btnExit = CreateMenuButton("🚪 退出壁纸与桌宠 (恢复原壁纸)", 12, btnY, Color.FromArgb(248, 113, 113), (s, e) =>
             {
@@ -154,6 +162,7 @@ namespace EarthWallpaper
             Controls.Add(btnNext);
             Controls.Add(_btnIcons);
             Controls.Add(btnMap);
+            Controls.Add(btnDev);
             Controls.Add(btnExit);
 
             ResumeLayout(false);

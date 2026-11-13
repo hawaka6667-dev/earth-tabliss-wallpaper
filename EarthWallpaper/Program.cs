@@ -68,8 +68,8 @@ namespace EarthWallpaper
                 {
                     ApplicationConfiguration.Initialize();
                     var loc = new LocationInfo { Country = "Spain", Region = "Barcelona", Lat = "41.406985", Lng = "2.175912" };
-                    var form = new GeminiHubForm(new WallpaperForm(), loc, true);
-                    var timer = new System.Windows.Forms.Timer { Interval = 600 };
+                    var form = new GeminiHubForm(new WallpaperForm(), loc, true, false);
+                    var timer = new System.Windows.Forms.Timer { Interval = 1200 };
                     timer.Tick += (s, e) =>
                     {
                         timer.Stop();
@@ -86,6 +86,67 @@ namespace EarthWallpaper
                 catch (Exception ex)
                 {
                     Log($"Render Hub bookmarks exception: {ex}");
+                }
+                return;
+            }
+
+            if (args.Length > 0 && args[0] == "--render-hub-dev")
+            {
+                try
+                {
+                    ApplicationConfiguration.Initialize();
+                    var loc = new LocationInfo { Country = "Spain", Region = "Barcelona", Lat = "41.406985", Lng = "2.175912" };
+                    var wpForm = new WallpaperForm();
+                    // Supply realistic mock queue data for developer inspection rendering
+                    wpForm.LatestQueueStatus = new QueueStatusInfo
+                    {
+                        QueueLength = 5,
+                        LoadingCount = 0,
+                        MaxQueueSize = 5,
+                        HistoryLength = 4,
+                        ShufflePtr = 42,
+                        TotalLocations = 1450,
+                        CurrentLocation = new QueueItemInfo
+                        {
+                            Country = "Spain",
+                            Region = "Barcelona",
+                            Lat = "41.406985",
+                            Lng = "2.175912",
+                            Image = "https://www.gstatic.com/prettyearth/assets/full/1329.jpg"
+                        },
+                        QueuedItems = new List<QueueItemInfo>
+                        {
+                            new QueueItemInfo { Country = "United States", Region = "Grand Canyon", Lat = "36.0544", Lng = "-112.1401", Image = "https://www.gstatic.com/prettyearth/assets/full/1003.jpg" },
+                            new QueueItemInfo { Country = "Iceland", Region = "Vatnajökull", Lat = "64.4216", Lng = "-16.8093", Image = "https://www.gstatic.com/prettyearth/assets/full/1024.jpg" },
+                            new QueueItemInfo { Country = "Japan", Region = "Mount Fuji", Lat = "35.3606", Lng = "138.7274", Image = "https://www.gstatic.com/prettyearth/assets/full/1150.jpg" },
+                            new QueueItemInfo { Country = "Egypt", Region = "Nile Delta", Lat = "30.8025", Lng = "31.2500", Image = "https://www.gstatic.com/prettyearth/assets/full/1200.jpg" },
+                            new QueueItemInfo { Country = "Australia", Region = "Great Barrier Reef", Lat = "-18.2871", Lng = "147.6992", Image = "https://www.gstatic.com/prettyearth/assets/full/1300.jpg" }
+                        },
+                        HistoryItems = new List<QueueItemInfo>
+                        {
+                            new QueueItemInfo { Country = "Norway", Region = "Lofoten Islands", Lat = "68.2036", Lng = "13.6052" },
+                            new QueueItemInfo { Country = "Chile", Region = "Atacama Desert", Lat = "-23.8634", Lng = "-69.1328" }
+                        }
+                    };
+
+                    var form = new GeminiHubForm(wpForm, loc, false, true);
+                    var timer = new System.Windows.Forms.Timer { Interval = 1000 };
+                    timer.Tick += (s, e) =>
+                    {
+                        timer.Stop();
+                        using var bmp = new System.Drawing.Bitmap(form.ClientSize.Width, form.ClientSize.Height);
+                        form.DrawToBitmap(bmp, new System.Drawing.Rectangle(0, 0, form.ClientSize.Width, form.ClientSize.Height));
+                        string outPath = args.Length > 1 ? args[1] : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "hub_dev_verified.png");
+                        bmp.Save(outPath, System.Drawing.Imaging.ImageFormat.Png);
+                        Log($"Rendered Hub dev queue inspector to {outPath}");
+                        form.Close();
+                    };
+                    timer.Start();
+                    Application.Run(form);
+                }
+                catch (Exception ex)
+                {
+                    Log($"Render Hub dev exception: {ex}");
                 }
                 return;
             }

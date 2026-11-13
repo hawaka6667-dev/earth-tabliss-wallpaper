@@ -279,13 +279,16 @@ namespace EarthWallpaper
             }
         }
 
-        public void OpenGeminiHub(bool openToBookmarks = false)
+        public void OpenGeminiHub(bool openToBookmarks = false, bool openToDev = false)
         {
             _bubbleForm?.Hide();
             _menuForm?.Hide();
 
             if (_hubForm != null && !_hubForm.IsDisposed)
             {
+                if (openToDev) _hubForm.SwitchTab(2);
+                else if (openToBookmarks) _hubForm.SwitchTab(1);
+                else _hubForm.SwitchTab(0);
                 _hubForm.BringToFront();
                 return;
             }
@@ -298,7 +301,7 @@ namespace EarthWallpaper
                 Lng = "143.560709"
             };
 
-            _hubForm = new GeminiHubForm(_wallpaperForm, loc, openToBookmarks);
+            _hubForm = new GeminiHubForm(_wallpaperForm, loc, openToBookmarks, openToDev);
             _hubForm.Show();
         }
 

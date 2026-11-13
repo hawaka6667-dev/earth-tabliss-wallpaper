@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -19,10 +20,12 @@ namespace EarthWallpaper
 
         private Button? _btnTabAsk;
         private Button? _btnTabBookmarks;
+        private Button? _btnTabDev;
         private Button? _btnBookmarkAction;
 
         private Panel? _pnlAskContent;
         private Panel? _pnlBookmarksContent;
+        private Panel? _pnlDevContent;
 
         // Ask Gemini controls
         private Label? _lblTargetLoc;
@@ -35,7 +38,17 @@ namespace EarthWallpaper
         private FlowLayoutPanel? _pnlBookmarksList;
         private Label? _lblBookmarksCount;
         private FlowLayoutPanel? _pnlCategoryTabs;
+        private TextBox? _txtBookmarkSearch;
         private string _selectedCategory = "全部";
+        private string _searchKeyword = "";
+
+        // Developer Mode controls
+        private Label? _lblStatQueue;
+        private Label? _lblStatHistory;
+        private Label? _lblStatDeck;
+        private Label? _lblStatWorkerW;
+        private FlowLayoutPanel? _pnlDevQueueCards;
+        private FlowLayoutPanel? _pnlDevHistoryCards;
 
         private List<(string role, string text)> _chatHistory = new();
 
@@ -43,12 +56,17 @@ namespace EarthWallpaper
         private bool _isDraggingForm = false;
         private Point _dragStartPoint;
 
-        public GeminiHubForm(WallpaperForm wallpaperForm, LocationInfo location, bool openToBookmarks = false)
+        public GeminiHubForm(WallpaperForm wallpaperForm, LocationInfo location, bool openToBookmarks = false, bool openToDev = false)
         {
             _wallpaperForm = wallpaperForm;
             _currentLoc = location;
             InitializeComponent();
-            if (openToBookmarks) SwitchTab(false);
+
+            _wallpaperForm.OnQueueStatusUpdated += OnQueueStatusUpdatedHandler;
+
+            if (openToDev) SwitchTab(2);
+            else if (openToBookmarks) SwitchTab(1);
+            else SwitchTab(0);
         }
 
         private void InitializeComponent()
@@ -60,7 +78,7 @@ namespace EarthWallpaper
             StartPosition = FormStartPosition.Manual;
             TopMost = true;
             DoubleBuffered = true;
-            Size = new Size(840, 600);
+            Size = new Size(950, 640);
             BackColor = Color.FromArgb(15, 23, 42); // Slate 900
             ForeColor = Color.FromArgb(241, 245, 249);
 
@@ -113,18 +131,19 @@ namespace EarthWallpaper
                 AutoSize = true
             };
 
-            _btnTabAsk = CreateNavTab("💬 Ask Gemini 研判", 138, 10, true, (s, e) => SwitchTab(true));
-            _btnTabBookmarks = CreateNavTab("⭐ 地标收藏夹", 304, 10, false, (s, e) => SwitchTab(false));
+            _btnTabAsk = CreateNavTab("💬 Ask Gemini", 126, 9, 145, true, (s, e) => SwitchTab(0));
+            _btnTabBookmarks = CreateNavTab("⭐ 地标收藏夹", 279, 9, 140, false, (s, e) => SwitchTab(1));
+            _btnTabDev = CreateNavTab("🛠️ 开发者 / 队列", 427, 9, 160, false, (s, e) => SwitchTab(2));
 
             var btnKey = new Button
             {
                 Text = "🔑 API 设置",
-                Font = new Font("Segoe UI", 8.8f, FontStyle.Regular),
+                Font = new Font("Segoe UI", 9f, FontStyle.Regular),
                 ForeColor = Color.FromArgb(148, 163, 184),
                 BackColor = Color.Transparent,
                 FlatStyle = FlatStyle.Flat,
-                Size = new Size(104, 30),
-                Location = new Point(Width - 160, 11),
+                Size = new Size(116, 32),
+                Location = new Point(Width - 172, 10),
                 Cursor = Cursors.Hand
             };
             btnKey.FlatAppearance.BorderColor = Color.FromArgb(71, 85, 105);
@@ -137,8 +156,8 @@ namespace EarthWallpaper
                 ForeColor = Color.FromArgb(148, 163, 184),
                 BackColor = Color.Transparent,
                 FlatStyle = FlatStyle.Flat,
-                Size = new Size(38, 30),
-                Location = new Point(Width - 48, 11),
+                Size = new Size(38, 32),
+                Location = new Point(Width - 48, 10),
                 Cursor = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderSize = 0;
@@ -147,12 +166,13 @@ namespace EarthWallpaper
             pnlTopNav.Controls.Add(lblLogo);
             pnlTopNav.Controls.Add(_btnTabAsk);
             pnlTopNav.Controls.Add(_btnTabBookmarks);
+            pnlTopNav.Controls.Add(_btnTabDev);
             pnlTopNav.Controls.Add(btnKey);
             pnlTopNav.Controls.Add(btnClose);
             Controls.Add(pnlTopNav);
 
             // ==========================================
-            // 2. Tab 1: Ask Gemini Panel
+            // 2. Tab Panels
             // ==========================================
             _pnlAskContent = new Panel
             {
@@ -163,9 +183,6 @@ namespace EarthWallpaper
             InitAskTab(_pnlAskContent);
             Controls.Add(_pnlAskContent);
 
-            // ==========================================
-            // 3. Tab 2: Bookmarks Panel
-            // ==========================================
             _pnlBookmarksContent = new Panel
             {
                 Location = new Point(0, 52),
@@ -174,6 +191,15 @@ namespace EarthWallpaper
             };
             InitBookmarksTab(_pnlBookmarksContent);
             Controls.Add(_pnlBookmarksContent);
+
+            _pnlDevContent = new Panel
+            {
+                Location = new Point(0, 52),
+                Size = new Size(Width, Height - 52),
+                Visible = false
+            };
+            InitDevTab(_pnlDevContent);
+            Controls.Add(_pnlDevContent);
 
             ResumeLayout(false);
 
@@ -184,51 +210,70 @@ namespace EarthWallpaper
             };
         }
 
-        private Button CreateNavTab(string text, int x, int y, bool isActive, EventHandler onClick)
+        private Button CreateNavTab(string text, int x, int y, int width, bool isSelected, EventHandler onClick)
         {
             var btn = new Button
             {
                 Text = text,
-                Location = new Point(x, y),
-                Size = new Size(156, 32),
+                Font = new Font("Segoe UI", 9.5f, isSelected ? FontStyle.Bold : FontStyle.Regular),
+                ForeColor = isSelected ? Color.White : Color.FromArgb(148, 163, 184),
+                BackColor = isSelected ? Color.FromArgb(15, 23, 42) : Color.Transparent,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9.5f, isActive ? FontStyle.Bold : FontStyle.Regular),
-                ForeColor = isActive ? Color.White : Color.FromArgb(148, 163, 184),
-                BackColor = isActive ? Color.FromArgb(2, 132, 199) : Color.FromArgb(15, 23, 42),
+                Size = new Size(width, 34),
+                Location = new Point(x, y),
                 Cursor = Cursors.Hand
             };
-            btn.FlatAppearance.BorderSize = 0;
+            btn.FlatAppearance.BorderColor = isSelected ? Color.FromArgb(56, 189, 248) : Color.FromArgb(51, 65, 85);
+            btn.FlatAppearance.BorderSize = isSelected ? 2 : 1;
             btn.Click += onClick;
             return btn;
         }
 
-        private void SwitchTab(bool toAsk)
+        public void SwitchTab(int tabIndex)
         {
-            if (_pnlAskContent != null) _pnlAskContent.Visible = toAsk;
-            if (_pnlBookmarksContent != null) _pnlBookmarksContent.Visible = !toAsk;
+            if (_pnlAskContent == null || _pnlBookmarksContent == null || _pnlDevContent == null) return;
+            if (_btnTabAsk == null || _btnTabBookmarks == null || _btnTabDev == null) return;
 
-            if (_btnTabAsk != null)
-            {
-                _btnTabAsk.BackColor = toAsk ? Color.FromArgb(2, 132, 199) : Color.FromArgb(15, 23, 42);
-                _btnTabAsk.ForeColor = toAsk ? Color.White : Color.FromArgb(148, 163, 184);
-                _btnTabAsk.Font = new Font("Segoe UI", 9.5f, toAsk ? FontStyle.Bold : FontStyle.Regular);
-            }
-            if (_btnTabBookmarks != null)
-            {
-                _btnTabBookmarks.BackColor = !toAsk ? Color.FromArgb(2, 132, 199) : Color.FromArgb(15, 23, 42);
-                _btnTabBookmarks.ForeColor = !toAsk ? Color.White : Color.FromArgb(148, 163, 184);
-                _btnTabBookmarks.Font = new Font("Segoe UI", 9.5f, !toAsk ? FontStyle.Bold : FontStyle.Regular);
-            }
+            _pnlAskContent.Visible = (tabIndex == 0);
+            _pnlBookmarksContent.Visible = (tabIndex == 1);
+            _pnlDevContent.Visible = (tabIndex == 2);
 
-            if (!toAsk) RefreshBookmarksList();
+            UpdateTabButtonVisual(_btnTabAsk, tabIndex == 0);
+            UpdateTabButtonVisual(_btnTabBookmarks, tabIndex == 1);
+            UpdateTabButtonVisual(_btnTabDev, tabIndex == 2);
+
+            if (tabIndex == 1)
+            {
+                RefreshBookmarksList();
+            }
+            else if (tabIndex == 2)
+            {
+                if (_wallpaperForm.LatestQueueStatus != null)
+                {
+                    RenderQueueStatus(_wallpaperForm.LatestQueueStatus);
+                }
+                _wallpaperForm.RequestQueueStatus();
+            }
+        }
+
+        public void SwitchToAsk() => SwitchTab(0);
+        public void SwitchToBookmarks() => SwitchTab(1);
+        public void SwitchToDev() => SwitchTab(2);
+
+        private void UpdateTabButtonVisual(Button btn, bool isSelected)
+        {
+            btn.Font = new Font("Segoe UI", 9.5f, isSelected ? FontStyle.Bold : FontStyle.Regular);
+            btn.ForeColor = isSelected ? Color.White : Color.FromArgb(148, 163, 184);
+            btn.BackColor = isSelected ? Color.FromArgb(15, 23, 42) : Color.Transparent;
+            btn.FlatAppearance.BorderColor = isSelected ? Color.FromArgb(56, 189, 248) : Color.FromArgb(51, 65, 85);
+            btn.FlatAppearance.BorderSize = isSelected ? 2 : 1;
         }
 
         // ==========================================
-        // Ask Gemini Tab Layout
+        // 1. Ask Gemini Tab
         // ==========================================
         private void InitAskTab(Panel container)
         {
-            // Current Location Bar
             var pnlLocBar = new Panel
             {
                 Dock = DockStyle.Top,
@@ -284,7 +329,6 @@ namespace EarthWallpaper
             pnlLocBar.Controls.Add(btnOpenMap);
             container.Controls.Add(pnlLocBar);
 
-            // Chat History Panel
             _pnlChatHistory = new Panel
             {
                 Location = new Point(16, 48),
@@ -295,12 +339,10 @@ namespace EarthWallpaper
             };
             container.Controls.Add(_pnlChatHistory);
 
-            // Initial Welcome Bubble
             AddChatBubble(false, $"欢迎进入行星地学研判室！\n" +
                                  $"当前视界锁定在 **{_currentLoc.GetDisplayName()}**。\n" +
                                  $"我可以为您解析此地的**地质断层演化、水系冲刷沉积机理、遥感物性特征**或推荐观测视角。您可以点击下方快捷问题或直接输入提问！");
 
-            // Quick Chips Panel (AutoScroll false to eliminate native ugly scrollbar)
             _pnlQuickChips = new FlowLayoutPanel
             {
                 Location = new Point(16, container.Height - 96),
@@ -314,7 +356,6 @@ namespace EarthWallpaper
             AddQuickChip("🔍 周边地貌奇观");
             container.Controls.Add(_pnlQuickChips);
 
-            // Input Bar
             var pnlInputBar = new Panel
             {
                 Location = new Point(16, container.Height - 56),
@@ -348,13 +389,13 @@ namespace EarthWallpaper
 
             _btnSend = new Button
             {
-                Text = "发送 ✨",
-                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(2, 132, 199),
+                Text = "提问 ✨",
+                Location = new Point(pnlInputBar.Width - 100, 7),
+                Size = new Size(88, 30),
+                BackColor = Color.FromArgb(56, 189, 248),
+                ForeColor = Color.FromArgb(15, 23, 42),
                 FlatStyle = FlatStyle.Flat,
-                Size = new Size(90, 32),
-                Location = new Point(pnlInputBar.Width - 98, 6),
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             _btnSend.FlatAppearance.BorderSize = 0;
@@ -370,21 +411,21 @@ namespace EarthWallpaper
             var btn = new Button
             {
                 Text = text,
-                AutoSize = true,
-                Height = 28,
-                Font = new Font("Segoe UI", 8.5f, FontStyle.Regular),
+                Font = new Font("Segoe UI", 8.5f),
                 ForeColor = Color.FromArgb(148, 163, 184),
                 BackColor = Color.FromArgb(30, 41, 59),
                 FlatStyle = FlatStyle.Flat,
+                AutoSize = true,
+                Height = 28,
                 Margin = new Padding(0, 0, 8, 0),
                 Cursor = Cursors.Hand
             };
-            btn.FlatAppearance.BorderColor = Color.FromArgb(71, 85, 105);
+            btn.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
             btn.Click += (s, e) =>
             {
                 if (_txtQuestion != null)
                 {
-                    _txtQuestion.Text = text;
+                    _txtQuestion.Text = text.Substring(2).Trim();
                     SendUserQuestion();
                 }
             };
@@ -398,87 +439,64 @@ namespace EarthWallpaper
             _txtQuestion.Text = "";
 
             AddChatBubble(true, q);
-            _btnSend!.Enabled = false;
+            _chatHistory.Add(("user", q));
 
-            var loadingLabel = AddChatBubble(false, "Gemini 正在反演地质机理...");
+            if (!GeminiService.HasApiKey())
+            {
+                AddChatBubble(false, "⚠️ 您尚未配置 Gemini API 密钥。\n请点击右上角【🔑 API 设置】配置免费的 Google AI API 密钥即可开启研判！");
+                return;
+            }
+
+            var pnlLoading = AddChatBubble(false, "🛰️ 正在调取轨道遥感物性特征与断层数据库，Gemini 实时推演中...");
 
             try
             {
                 string answer = await GeminiService.AskQuestionAsync(_currentLoc, q, _chatHistory);
-                _chatHistory.Add(("user", q));
-                _chatHistory.Add(("model", answer));
-                loadingLabel.Text = answer;
-                AdjustBubbleSize(loadingLabel);
+                pnlLoading.Parent?.Controls.Remove(pnlLoading);
+                AddChatBubble(false, answer);
+                _chatHistory.Add(("assistant", answer));
             }
             catch (Exception ex)
             {
-                loadingLabel.Text = $"研判请求出错: {ex.Message}";
-                AdjustBubbleSize(loadingLabel);
-            }
-            finally
-            {
-                _btnSend.Enabled = true;
+                pnlLoading.Parent?.Controls.Remove(pnlLoading);
+                AddChatBubble(false, $"❌ 研判请求受阻: {ex.Message}\n请检查网络连接或 API 配额。");
             }
         }
 
-        private Label AddChatBubble(bool isUser, string text)
+        private Panel AddChatBubble(bool isUser, string text)
         {
-            if (_pnlChatHistory == null) return new Label();
+            if (_pnlChatHistory == null) return new Panel();
 
-            var pnlBubble = new Panel
+            int maxWidth = (int)(_pnlChatHistory.Width * 0.78);
+            var pnl = new Panel
             {
-                Width = _pnlChatHistory.Width - 28,
-                BackColor = isUser ? Color.FromArgb(3, 105, 161) : Color.FromArgb(30, 41, 59),
-                Margin = new Padding(0, 6, 0, 8),
-                Padding = new Padding(12)
+                AutoSize = true,
+                MaximumSize = new Size(maxWidth, 0),
+                Padding = new Padding(14, 10, 14, 10),
+                BackColor = isUser ? Color.FromArgb(37, 99, 235) : Color.FromArgb(30, 41, 59),
+                Margin = new Padding(isUser ? _pnlChatHistory.Width - maxWidth - 40 : 4, 6, 4, 6)
             };
 
-            var lblHeader = new Label
-            {
-                Text = isUser ? "🙋 您：" : "🛰️ Gemini 遥感研判：",
-                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
-                ForeColor = isUser ? Color.FromArgb(224, 242, 254) : Color.FromArgb(56, 189, 248),
-                Dock = DockStyle.Top,
-                Height = 22
-            };
-
-            var lblBody = new Label
+            var lbl = new Label
             {
                 Text = text,
-                Font = new Font("Segoe UI", 9f, FontStyle.Regular),
-                ForeColor = Color.FromArgb(241, 245, 249),
-                Dock = DockStyle.Top,
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Regular),
+                ForeColor = Color.White,
                 AutoSize = true,
-                MaximumSize = new Size(pnlBubble.Width - 24, 0)
+                MaximumSize = new Size(maxWidth - 28, 0)
             };
+            pnl.Controls.Add(lbl);
 
-            pnlBubble.Controls.Add(lblBody);
-            pnlBubble.Controls.Add(lblHeader);
-
-            int h = lblBody.PreferredHeight + 42;
-            pnlBubble.Height = h;
-
-            int y = 10;
+            int y = 8;
             foreach (Control c in _pnlChatHistory.Controls)
             {
-                y += c.Height + 10;
+                y = Math.Max(y, c.Bottom + 8);
             }
-            pnlBubble.Location = new Point(4, y);
+            pnl.Location = new Point(isUser ? _pnlChatHistory.Width - pnl.PreferredSize.Width - 28 : 12, y);
 
-            _pnlChatHistory.Controls.Add(pnlBubble);
-            _pnlChatHistory.ScrollControlIntoView(pnlBubble);
-            return lblBody;
-        }
-
-        private void AdjustBubbleSize(Label lbl)
-        {
-            var pnl = lbl.Parent as Panel;
-            if (pnl != null)
-            {
-                int h = lbl.PreferredHeight + 42;
-                pnl.Height = h;
-                _pnlChatHistory?.ScrollControlIntoView(pnl);
-            }
+            _pnlChatHistory.Controls.Add(pnl);
+            _pnlChatHistory.ScrollControlIntoView(pnl);
+            return pnl;
         }
 
         private void ToggleCurrentBookmark()
@@ -492,7 +510,7 @@ namespace EarthWallpaper
         }
 
         // ==========================================
-        // Bookmarks Tab Layout
+        // 2. Refactored Bookmarks Tab (With Thumbnails)
         // ==========================================
         private void InitBookmarksTab(Panel container)
         {
@@ -513,15 +531,45 @@ namespace EarthWallpaper
                 AutoSize = true
             };
 
+            // Search Box
+            var pnlSearch = new Panel
+            {
+                Location = new Point(container.Width - 380, 6),
+                Size = new Size(230, 26),
+                BackColor = Color.FromArgb(30, 41, 59)
+            };
+            pnlSearch.Paint += (s, e) =>
+            {
+                using var pen = new Pen(Color.FromArgb(71, 85, 105), 1f);
+                e.Graphics.DrawRectangle(pen, 0, 0, pnlSearch.Width - 1, pnlSearch.Height - 1);
+            };
+
+            _txtBookmarkSearch = new TextBox
+            {
+                Location = new Point(8, 4),
+                Size = new Size(214, 20),
+                BackColor = Color.FromArgb(30, 41, 59),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                Font = new Font("Segoe UI", 9f),
+                PlaceholderText = "🔍 搜索地貌/国家/分类..."
+            };
+            _txtBookmarkSearch.TextChanged += (s, e) =>
+            {
+                _searchKeyword = _txtBookmarkSearch.Text.Trim();
+                RefreshBookmarksList();
+            };
+            pnlSearch.Controls.Add(_txtBookmarkSearch);
+
             var btnAddCategory = new Button
             {
                 Text = "+ 新建分类",
-                Font = new Font("Segoe UI", 9f),
+                Font = new Font("Segoe UI", 8.8f),
                 ForeColor = Color.FromArgb(56, 189, 248),
                 BackColor = Color.FromArgb(30, 41, 59),
                 FlatStyle = FlatStyle.Flat,
-                Size = new Size(106, 26),
-                Location = new Point(container.Width - 128, 6),
+                Size = new Size(110, 26),
+                Location = new Point(container.Width - 130, 6),
                 Cursor = Cursors.Hand
             };
             btnAddCategory.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
@@ -537,6 +585,7 @@ namespace EarthWallpaper
             };
 
             pnlHeader.Controls.Add(_lblBookmarksCount);
+            pnlHeader.Controls.Add(pnlSearch);
             pnlHeader.Controls.Add(btnAddCategory);
             pnlHeader.Controls.Add(_pnlCategoryTabs);
             container.Controls.Add(pnlHeader);
@@ -544,7 +593,7 @@ namespace EarthWallpaper
             _pnlBookmarksList = new FlowLayoutPanel
             {
                 Location = new Point(16, 92),
-                Size = new Size(container.Width - 32, container.Height - 102),
+                Size = new Size(container.Width - 32, container.Height - 100),
                 AutoScroll = true,
                 FlowDirection = FlowDirection.TopDown,
                 WrapContents = false
@@ -554,42 +603,12 @@ namespace EarthWallpaper
 
         private void PromptCreateCategory()
         {
-            string cat = PromptInput("新建收藏分类", "请输入新分类/文件夹名称 (如: 城市、荒地、河流、好看):", "");
+            string cat = PromptInput("新建收藏分类", "请输入新分类/文件夹名称 (如: 城市、荒漠、水系、震撼):", "");
             if (!string.IsNullOrWhiteSpace(cat))
             {
                 _selectedCategory = cat.Trim();
                 RefreshBookmarksList();
             }
-        }
-
-        private static string PromptInput(string title, string prompt, string defaultVal)
-        {
-            using var form = new Form
-            {
-                Width = 420,
-                Height = 180,
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                Text = title,
-                StartPosition = FormStartPosition.CenterParent,
-                BackColor = Color.FromArgb(15, 23, 42),
-                ForeColor = Color.White,
-                MaximizeBox = false,
-                MinimizeBox = false
-            };
-
-            var lbl = new Label { Left = 20, Top = 16, Width = 360, Height = 36, Text = prompt, ForeColor = Color.FromArgb(226, 232, 240) };
-            var txt = new TextBox { Left = 20, Top = 58, Width = 360, Text = defaultVal, BackColor = Color.FromArgb(30, 41, 59), ForeColor = Color.White };
-            var btnOk = new Button { Text = "确定", Left = 200, Top = 96, Width = 84, Height = 28, DialogResult = DialogResult.OK, BackColor = Color.FromArgb(56, 189, 248), ForeColor = Color.Black, FlatStyle = FlatStyle.Flat };
-            var btnCancel = new Button { Text = "取消", Left = 296, Top = 96, Width = 84, Height = 28, DialogResult = DialogResult.Cancel, BackColor = Color.FromArgb(51, 65, 85), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
-
-            form.Controls.Add(lbl);
-            form.Controls.Add(txt);
-            form.Controls.Add(btnOk);
-            form.Controls.Add(btnCancel);
-            form.AcceptButton = btnOk;
-            form.CancelButton = btnCancel;
-
-            return form.ShowDialog() == DialogResult.OK ? txt.Text.Trim() : string.Empty;
         }
 
         public void RefreshBookmarksList()
@@ -628,14 +647,26 @@ namespace EarthWallpaper
             }
 
             var allItems = BookmarkManager.GetAll();
-            var filteredItems = _selectedCategory == "全部"
-                ? allItems
-                : allItems.FindAll(b => string.Equals(b.Category, _selectedCategory, StringComparison.OrdinalIgnoreCase));
+            var filteredItems = allItems.FindAll(b =>
+            {
+                bool matchesCat = (_selectedCategory == "全部") || string.Equals(b.Category, _selectedCategory, StringComparison.OrdinalIgnoreCase);
+                if (!matchesCat) return false;
+
+                if (!string.IsNullOrEmpty(_searchKeyword))
+                {
+                    string k = _searchKeyword.ToLower();
+                    return b.Country.ToLower().Contains(k) ||
+                           b.Region.ToLower().Contains(k) ||
+                           b.Category.ToLower().Contains(k) ||
+                           b.Lat.Contains(k) || b.Lng.Contains(k);
+                }
+                return true;
+            });
 
             if (_lblBookmarksCount != null)
             {
-                string catFilterDesc = _selectedCategory == "全部" ? "全部" : $"分类: {_selectedCategory}";
-                _lblBookmarksCount.Text = $"⭐ 已收藏 {allItems.Count} 处地貌 ({catFilterDesc} 显示 {filteredItems.Count} 项)";
+                string catDesc = _selectedCategory == "全部" ? "全部" : $"分类: {_selectedCategory}";
+                _lblBookmarksCount.Text = $"⭐ 已收藏 {allItems.Count} 处地貌 ({catDesc} 显示 {filteredItems.Count} 项)";
             }
 
             if (filteredItems.Count == 0)
@@ -644,7 +675,7 @@ namespace EarthWallpaper
                 {
                     Text = _selectedCategory == "全部"
                         ? "\n\n暂无收藏地标。\n\n在桌宠气泡或上方点击【⭐ 收藏此地标】，即可将当前美景永久保存！"
-                        : $"\n\n当前分类【{_selectedCategory}】下暂无收藏地标。\n\n可在已有地标卡片上点击分类按钮，将地标移入该分类！",
+                        : $"\n\n当前分类【{_selectedCategory}】下暂无地标。\n可在卡片上点击分类按钮移入！",
                     Font = new Font("Segoe UI", 11f, FontStyle.Regular),
                     ForeColor = Color.FromArgb(148, 163, 184),
                     TextAlign = ContentAlignment.MiddleCenter,
@@ -659,46 +690,86 @@ namespace EarthWallpaper
                 var pnlCard = new Panel
                 {
                     Width = _pnlBookmarksList.Width - 24,
-                    Height = 68,
+                    Height = 88,
                     BackColor = Color.FromArgb(30, 41, 59),
                     Margin = new Padding(0, 0, 0, 8),
-                    Padding = new Padding(14, 10, 14, 10)
+                    Padding = new Padding(10, 8, 10, 8)
                 };
 
+                // Card Border Highlight
+                pnlCard.Paint += (s, e) =>
+                {
+                    using var pen = new Pen(Color.FromArgb(51, 65, 85), 1f);
+                    e.Graphics.DrawRectangle(pen, 0, 0, pnlCard.Width - 1, pnlCard.Height - 1);
+                };
+
+                // 1. Satellite Thumbnail Preview (Rounded picture box with fallback placeholder)
+                var picThumb = new PictureBox
+                {
+                    Location = new Point(10, 7),
+                    Size = new Size(110, 74),
+                    SizeMode = PictureBoxSizeMode.CenterImage,
+                    BackColor = Color.FromArgb(15, 23, 42),
+                    Cursor = Cursors.Hand
+                };
+                picThumb.Image = ThumbnailCacheManager.GetPlaceholder();
+
+                ThumbnailCacheManager.LoadThumbnailAsync(item.ImageUrl, 110, 74, thumb =>
+                {
+                    if (picThumb.IsHandleCreated && !picThumb.IsDisposed)
+                    {
+                        picThumb.BeginInvoke(new Action(() => picThumb.Image = thumb));
+                    }
+                });
+
+                picThumb.Click += (s, e) =>
+                {
+                    _wallpaperForm.ApplyCustomWallpaper(new LocationInfo
+                    {
+                        Country = item.Country,
+                        Region = item.Region,
+                        Lat = item.Lat,
+                        Lng = item.Lng,
+                        MapUrl = item.MapUrl,
+                        ImageUrl = item.ImageUrl
+                    });
+                };
+
+                // 2. Location Info & Metadata
                 var lblName = new Label
                 {
                     Text = $"📍 {item.GetDisplayName()}",
-                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    Font = new Font("Segoe UI", 10.5f, FontStyle.Bold),
                     ForeColor = Color.White,
-                    Location = new Point(10, 12),
-                    Size = new Size(pnlCard.Width - 440, 22),
+                    Location = new Point(132, 10),
+                    Size = new Size(pnlCard.Width - 490, 22),
                     AutoEllipsis = true
                 };
 
                 string catText = string.IsNullOrWhiteSpace(item.Category) ? "默认" : item.Category;
                 var lblCoords = new Label
                 {
-                    Text = $"分类: [{catText}] • 坐标: {item.Lat}, {item.Lng} • {item.SavedAt:MM-dd HH:mm}",
-                    Font = new Font("Consolas", 8.5f, FontStyle.Regular),
+                    Text = $"坐标: {item.Lat}, {item.Lng}   •   {item.SavedAt:yyyy-MM-dd HH:mm}",
+                    Font = new Font("Consolas", 8.8f, FontStyle.Regular),
                     ForeColor = Color.FromArgb(148, 163, 184),
-                    Location = new Point(12, 38),
-                    Size = new Size(pnlCard.Width - 440, 20),
+                    Location = new Point(134, 36),
+                    Size = new Size(pnlCard.Width - 490, 18),
                     AutoEllipsis = true
                 };
 
-                // Move Category button
+                // Tag Pill button
                 var btnMoveCat = new Button
                 {
                     Text = $"📁 {catText}",
-                    Font = new Font("Segoe UI", 8.5f),
+                    Font = new Font("Segoe UI", 8.2f),
                     ForeColor = Color.FromArgb(248, 250, 252),
                     BackColor = Color.FromArgb(51, 65, 85),
                     FlatStyle = FlatStyle.Flat,
-                    Size = new Size(82, 32),
-                    Location = new Point(pnlCard.Width - 424, 18),
+                    Size = new Size(96, 22),
+                    Location = new Point(134, 58),
                     Cursor = Cursors.Hand
                 };
-                btnMoveCat.FlatAppearance.BorderColor = Color.FromArgb(71, 85, 105);
+                btnMoveCat.FlatAppearance.BorderSize = 0;
                 btnMoveCat.Click += (s, e) =>
                 {
                     string newCat = PromptInput("修改分类", "请输入新的所属分类/文件夹:", item.Category);
@@ -709,19 +780,21 @@ namespace EarthWallpaper
                     }
                 };
 
-                // Action buttons on card
+                // 3. Action Buttons on Right
+                int btnTop = 28;
+
                 var btnApply = new Button
                 {
-                    Text = "设为壁纸",
-                    Font = new Font("Segoe UI", 9f, FontStyle.Regular),
+                    Text = "🖼️ 设为壁纸",
+                    Font = new Font("Segoe UI", 9f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(56, 189, 248),
                     BackColor = Color.FromArgb(15, 23, 42),
                     FlatStyle = FlatStyle.Flat,
-                    Size = new Size(84, 32),
-                    Location = new Point(pnlCard.Width - 328, 18),
+                    Size = new Size(118, 32),
+                    Location = new Point(pnlCard.Width - 336, btnTop),
                     Cursor = Cursors.Hand
                 };
-                btnApply.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
+                btnApply.FlatAppearance.BorderColor = Color.FromArgb(56, 189, 248);
                 btnApply.Click += (s, e) =>
                 {
                     _wallpaperForm.ApplyCustomWallpaper(new LocationInfo
@@ -733,7 +806,6 @@ namespace EarthWallpaper
                         MapUrl = item.MapUrl,
                         ImageUrl = item.ImageUrl
                     });
-                    MessageBox.Show($"已将壁纸切换至: {item.GetDisplayName()}", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 };
 
                 var btnOpenEarth = new Button
@@ -743,26 +815,26 @@ namespace EarthWallpaper
                     ForeColor = Color.FromArgb(52, 211, 153),
                     BackColor = Color.FromArgb(15, 23, 42),
                     FlatStyle = FlatStyle.Flat,
-                    Size = new Size(64, 32),
-                    Location = new Point(pnlCard.Width - 236, 18),
+                    Size = new Size(72, 32),
+                    Location = new Point(pnlCard.Width - 212, btnTop),
                     Cursor = Cursors.Hand
                 };
                 btnOpenEarth.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
                 btnOpenEarth.Click += (s, e) =>
                 {
                     var url = $"https://earth.google.com/web/@{item.Lat},{item.Lng},1000a,35y,0h,0t,0r";
-                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+                    try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
                 };
 
                 var btnAskThis = new Button
                 {
-                    Text = "向AI提问",
+                    Text = "✨ 研判",
                     Font = new Font("Segoe UI", 9f, FontStyle.Regular),
                     ForeColor = Color.FromArgb(165, 180, 252),
                     BackColor = Color.FromArgb(15, 23, 42),
                     FlatStyle = FlatStyle.Flat,
-                    Size = new Size(82, 32),
-                    Location = new Point(pnlCard.Width - 164, 18),
+                    Size = new Size(84, 32),
+                    Location = new Point(pnlCard.Width - 134, btnTop),
                     Cursor = Cursors.Hand
                 };
                 btnAskThis.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
@@ -779,7 +851,7 @@ namespace EarthWallpaper
                     };
                     if (_lblTargetLoc != null)
                         _lblTargetLoc.Text = $"📍 {_currentLoc.GetDisplayName()} ({_currentLoc.Lat}° N, {_currentLoc.Lng}° E)";
-                    SwitchTab(true);
+                    SwitchTab(0);
                 };
 
                 var btnDelete = new Button
@@ -789,8 +861,8 @@ namespace EarthWallpaper
                     ForeColor = Color.FromArgb(248, 113, 113),
                     BackColor = Color.Transparent,
                     FlatStyle = FlatStyle.Flat,
-                    Size = new Size(34, 32),
-                    Location = new Point(pnlCard.Width - 46, 18),
+                    Size = new Size(32, 32),
+                    Location = new Point(pnlCard.Width - 44, btnTop),
                     Cursor = Cursors.Hand
                 };
                 btnDelete.FlatAppearance.BorderSize = 0;
@@ -800,6 +872,7 @@ namespace EarthWallpaper
                     RefreshBookmarksList();
                 };
 
+                pnlCard.Controls.Add(picThumb);
                 pnlCard.Controls.Add(lblName);
                 pnlCard.Controls.Add(lblCoords);
                 pnlCard.Controls.Add(btnMoveCat);
@@ -810,6 +883,390 @@ namespace EarthWallpaper
 
                 _pnlBookmarksList.Controls.Add(pnlCard);
             }
+        }
+
+        // ==========================================
+        // 3. Developer Mode / Queue Inspector Tab
+        // ==========================================
+        private void InitDevTab(Panel container)
+        {
+            // Top Toolbar
+            var pnlToolbar = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 44,
+                BackColor = Color.FromArgb(20, 30, 48),
+                Padding = new Padding(16, 6, 16, 6)
+            };
+
+            var lblTitle = new Label
+            {
+                Text = "🛠️ 底层预加载队列与遥测",
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(56, 189, 248),
+                Location = new Point(14, 12),
+                AutoSize = true
+            };
+
+            var pnlActions = new FlowLayoutPanel
+            {
+                Location = new Point(container.Width - 500, 6),
+                Size = new Size(484, 32),
+                FlowDirection = FlowDirection.RightToLeft,
+                WrapContents = false,
+                BackColor = Color.Transparent
+            };
+
+            var btnReshuffle = CreateDevButton("🎲 洗牌", (s, e) => _wallpaperForm.ReshuffleDeck());
+            var btnPrev = CreateDevButton("⏮ 回退上一张", (s, e) => _wallpaperForm.SendWebMessage("previous_wallpaper"));
+            var btnNext = CreateDevButton("⏭ 立即换下一张", (s, e) => _wallpaperForm.SendWebMessage("next_wallpaper"));
+            var btnRefresh = CreateDevButton("🔄 刷新遥测", (s, e) => _wallpaperForm.RequestQueueStatus());
+
+            pnlActions.Controls.Add(btnReshuffle);
+            pnlActions.Controls.Add(btnPrev);
+            pnlActions.Controls.Add(btnNext);
+            pnlActions.Controls.Add(btnRefresh);
+
+            pnlToolbar.Controls.Add(lblTitle);
+            pnlToolbar.Controls.Add(pnlActions);
+            container.Controls.Add(pnlToolbar);
+
+            // Metrics Bar
+            var pnlMetrics = new Panel
+            {
+                Location = new Point(16, 52),
+                Size = new Size(container.Width - 32, 60),
+                BackColor = Color.FromArgb(10, 15, 30)
+            };
+
+            int statW = (pnlMetrics.Width - 24) / 4;
+            _lblStatQueue = CreateStatCard(pnlMetrics, "预加载队列缓冲区", "0 / 5", 4, statW);
+            _lblStatHistory = CreateStatCard(pnlMetrics, "历史回退栈深度", "0 / 25", 8 + statW, statW);
+            _lblStatDeck = CreateStatCard(pnlMetrics, "图库漫游洗牌进度", "0 / 1548", 12 + statW * 2, statW);
+            _lblStatWorkerW = CreateStatCard(pnlMetrics, "桌面拓扑状态", "WorkerW (已挂载)", 16 + statW * 3, statW);
+            container.Controls.Add(pnlMetrics);
+
+            // Live Queue Cards Panel
+            var lblQueueHeader = new Label
+            {
+                Text = "📦 内存预加载队列实况 (0ms 无缝切图缓冲区):",
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(226, 232, 240),
+                Location = new Point(16, 120),
+                AutoSize = true
+            };
+            container.Controls.Add(lblQueueHeader);
+
+            _pnlDevQueueCards = new FlowLayoutPanel
+            {
+                Location = new Point(16, 144),
+                Size = new Size(container.Width - 32, 210),
+                AutoScroll = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                BackColor = Color.FromArgb(15, 23, 42)
+            };
+            container.Controls.Add(_pnlDevQueueCards);
+
+            // History Stack Panel
+            var lblHistoryHeader = new Label
+            {
+                Text = "⏮ 近期已轮播地貌历史 (点击任意历史卡片可回退):",
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(226, 232, 240),
+                Location = new Point(16, 362),
+                AutoSize = true
+            };
+            container.Controls.Add(lblHistoryHeader);
+
+            _pnlDevHistoryCards = new FlowLayoutPanel
+            {
+                Location = new Point(16, 386),
+                Size = new Size(container.Width - 32, container.Height - 396),
+                AutoScroll = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                BackColor = Color.FromArgb(15, 23, 42)
+            };
+            container.Controls.Add(_pnlDevHistoryCards);
+
+            if (_wallpaperForm.LatestQueueStatus != null)
+            {
+                RenderQueueStatus(_wallpaperForm.LatestQueueStatus);
+            }
+        }
+
+        private Button CreateDevButton(string text, EventHandler onClick)
+        {
+            var btn = new Button
+            {
+                Text = text,
+                Font = new Font("Segoe UI", 9f),
+                ForeColor = Color.FromArgb(226, 232, 240),
+                BackColor = Color.FromArgb(30, 41, 59),
+                FlatStyle = FlatStyle.Flat,
+                AutoSize = true,
+                Height = 30,
+                Margin = new Padding(6, 0, 0, 0),
+                Padding = new Padding(6, 2, 6, 2),
+                Cursor = Cursors.Hand
+            };
+            btn.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
+            btn.Click += onClick;
+            return btn;
+        }
+
+        private Label CreateStatCard(Panel parent, string title, string val, int x, int width)
+        {
+            var pnl = new Panel
+            {
+                Location = new Point(x, 6),
+                Size = new Size(width, 48),
+                BackColor = Color.FromArgb(30, 41, 59)
+            };
+
+            var lblT = new Label
+            {
+                Text = title,
+                Font = new Font("Segoe UI", 8f),
+                ForeColor = Color.FromArgb(148, 163, 184),
+                Location = new Point(8, 5),
+                AutoSize = true
+            };
+
+            var lblV = new Label
+            {
+                Text = val,
+                Font = new Font("Segoe UI", 10.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(56, 189, 248),
+                Location = new Point(8, 22),
+                AutoSize = true
+            };
+
+            pnl.Controls.Add(lblT);
+            pnl.Controls.Add(lblV);
+            parent.Controls.Add(pnl);
+            return lblV;
+        }
+
+        private void OnQueueStatusUpdatedHandler(QueueStatusInfo info)
+        {
+            if (IsHandleCreated && !IsDisposed)
+            {
+                BeginInvoke(new Action(() => RenderQueueStatus(info)));
+            }
+        }
+
+        private void RenderQueueStatus(QueueStatusInfo info)
+        {
+            if (_lblStatQueue != null)
+                _lblStatQueue.Text = $"{info.QueueLength} / {info.MaxQueueSize} (就绪)";
+            if (_lblStatHistory != null)
+                _lblStatHistory.Text = $"{info.HistoryLength} / 25";
+            if (_lblStatDeck != null)
+                _lblStatDeck.Text = $"{info.ShufflePtr} / {info.TotalLocations}";
+
+            // Render Queue Cards
+            if (_pnlDevQueueCards != null)
+            {
+                _pnlDevQueueCards.Controls.Clear();
+                if (info.QueuedItems.Count == 0)
+                {
+                    var lblEmpty = new Label
+                    {
+                        Text = "队列正在异步缓冲填充中...",
+                        ForeColor = Color.FromArgb(148, 163, 184),
+                        Font = new Font("Segoe UI", 9.5f),
+                        AutoSize = true,
+                        Padding = new Padding(20)
+                    };
+                    _pnlDevQueueCards.Controls.Add(lblEmpty);
+                }
+                else
+                {
+                    for (int i = 0; i < info.QueuedItems.Count; i++)
+                    {
+                        var item = info.QueuedItems[i];
+                        int slotIdx = i;
+
+                        var card = new Panel
+                        {
+                            Size = new Size(160, 190),
+                            BackColor = Color.FromArgb(30, 41, 59),
+                            Margin = new Padding(0, 0, 10, 0),
+                            Padding = new Padding(8)
+                        };
+
+                        var pb = new PictureBox
+                        {
+                            Location = new Point(8, 8),
+                            Size = new Size(144, 88),
+                            SizeMode = PictureBoxSizeMode.CenterImage,
+                            BackColor = Color.FromArgb(15, 23, 42)
+                        };
+                        pb.Image = ThumbnailCacheManager.GetPlaceholder();
+                        ThumbnailCacheManager.LoadThumbnailAsync(item.Image, 144, 88, thumb =>
+                        {
+                            if (pb.IsHandleCreated && !pb.IsDisposed)
+                                pb.BeginInvoke(new Action(() => pb.Image = thumb));
+                        });
+
+                        var lblBadge = new Label
+                        {
+                            Text = slotIdx == 0 ? "🔥 下一张 (Next)" : $"槽位 #{slotIdx + 1}",
+                            Font = new Font("Segoe UI", 8f, FontStyle.Bold),
+                            ForeColor = slotIdx == 0 ? Color.FromArgb(250, 204, 21) : Color.FromArgb(56, 189, 248),
+                            Location = new Point(8, 100),
+                            AutoSize = true
+                        };
+
+                        var lblName = new Label
+                        {
+                            Text = item.GetDisplayName(),
+                            Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+                            ForeColor = Color.White,
+                            Location = new Point(8, 118),
+                            Size = new Size(144, 32),
+                            AutoEllipsis = true
+                        };
+
+                        var btnApplyNow = new Button
+                        {
+                            Text = "立即应用",
+                            Font = new Font("Segoe UI", 8f),
+                            ForeColor = Color.FromArgb(56, 189, 248),
+                            BackColor = Color.FromArgb(15, 23, 42),
+                            FlatStyle = FlatStyle.Flat,
+                            Size = new Size(144, 24),
+                            Location = new Point(8, 156),
+                            Cursor = Cursors.Hand
+                        };
+                        btnApplyNow.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
+                        btnApplyNow.Click += (s, e) => _wallpaperForm.ApplyQueuedItem(slotIdx);
+
+                        card.Controls.Add(pb);
+                        card.Controls.Add(lblBadge);
+                        card.Controls.Add(lblName);
+                        card.Controls.Add(btnApplyNow);
+                        _pnlDevQueueCards.Controls.Add(card);
+                    }
+                }
+            }
+
+            // Render History Stack Cards
+            if (_pnlDevHistoryCards != null)
+            {
+                _pnlDevHistoryCards.Controls.Clear();
+                if (info.HistoryItems.Count == 0)
+                {
+                    var lblEmpty = new Label
+                    {
+                        Text = "暂无轮播回退记录",
+                        ForeColor = Color.FromArgb(148, 163, 184),
+                        Font = new Font("Segoe UI", 9f),
+                        AutoSize = true,
+                        Padding = new Padding(20)
+                    };
+                    _pnlDevHistoryCards.Controls.Add(lblEmpty);
+                }
+                else
+                {
+                    for (int i = info.HistoryItems.Count - 1; i >= 0; i--)
+                    {
+                        var hItem = info.HistoryItems[i];
+                        var card = new Panel
+                        {
+                            Size = new Size(150, 160),
+                            BackColor = Color.FromArgb(24, 32, 47),
+                            Margin = new Padding(0, 0, 10, 0),
+                            Padding = new Padding(6)
+                        };
+
+                        var pb = new PictureBox
+                        {
+                            Location = new Point(6, 6),
+                            Size = new Size(138, 80),
+                            SizeMode = PictureBoxSizeMode.CenterImage,
+                            BackColor = Color.FromArgb(15, 23, 42)
+                        };
+                        pb.Image = ThumbnailCacheManager.GetPlaceholder();
+                        ThumbnailCacheManager.LoadThumbnailAsync(hItem.Image, 138, 80, thumb =>
+                        {
+                            if (pb.IsHandleCreated && !pb.IsDisposed)
+                                pb.BeginInvoke(new Action(() => pb.Image = thumb));
+                        });
+
+                        var lblName = new Label
+                        {
+                            Text = hItem.GetDisplayName(),
+                            Font = new Font("Segoe UI", 8f),
+                            ForeColor = Color.FromArgb(203, 213, 225),
+                            Location = new Point(6, 90),
+                            Size = new Size(138, 28),
+                            AutoEllipsis = true
+                        };
+
+                        var btnRollback = new Button
+                        {
+                            Text = "回退至此",
+                            Font = new Font("Segoe UI", 7.8f),
+                            ForeColor = Color.FromArgb(52, 211, 153),
+                            BackColor = Color.FromArgb(15, 23, 42),
+                            FlatStyle = FlatStyle.Flat,
+                            Size = new Size(138, 24),
+                            Location = new Point(6, 124),
+                            Cursor = Cursors.Hand
+                        };
+                        btnRollback.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
+                        btnRollback.Click += (s, e) =>
+                        {
+                            _wallpaperForm.ApplyCustomWallpaper(new LocationInfo
+                            {
+                                Country = hItem.Country,
+                                Region = hItem.Region,
+                                Lat = hItem.Lat,
+                                Lng = hItem.Lng,
+                                ImageUrl = hItem.Image
+                            });
+                        };
+
+                        card.Controls.Add(pb);
+                        card.Controls.Add(lblName);
+                        card.Controls.Add(btnRollback);
+                        _pnlDevHistoryCards.Controls.Add(card);
+                    }
+                }
+            }
+        }
+
+        private static string PromptInput(string title, string prompt, string defaultVal)
+        {
+            using var form = new Form
+            {
+                Width = 420,
+                Height = 180,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                Text = title,
+                StartPosition = FormStartPosition.CenterParent,
+                BackColor = Color.FromArgb(15, 23, 42),
+                ForeColor = Color.White,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            var lbl = new Label { Left = 20, Top = 16, Width = 360, Height = 36, Text = prompt, ForeColor = Color.FromArgb(226, 232, 240) };
+            var txt = new TextBox { Left = 20, Top = 58, Width = 360, Text = defaultVal, BackColor = Color.FromArgb(30, 41, 59), ForeColor = Color.White };
+            var btnOk = new Button { Text = "确定", Left = 200, Top = 96, Width = 84, Height = 28, DialogResult = DialogResult.OK, BackColor = Color.FromArgb(56, 189, 248), ForeColor = Color.Black, FlatStyle = FlatStyle.Flat };
+            var btnCancel = new Button { Text = "取消", Left = 296, Top = 96, Width = 84, Height = 28, DialogResult = DialogResult.Cancel, BackColor = Color.FromArgb(51, 65, 85), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+
+            form.Controls.Add(lbl);
+            form.Controls.Add(txt);
+            form.Controls.Add(btnOk);
+            form.Controls.Add(btnCancel);
+            form.AcceptButton = btnOk;
+            form.CancelButton = btnCancel;
+
+            return form.ShowDialog() == DialogResult.OK ? txt.Text.Trim() : string.Empty;
         }
 
         private void PromptApiKeySetting()
@@ -824,6 +1281,15 @@ namespace EarthWallpaper
             using var pen = new Pen(Color.FromArgb(56, 189, 248), 1.5f);
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _wallpaperForm.OnQueueStatusUpdated -= OnQueueStatusUpdatedHandler;
+            }
+            base.Dispose(disposing);
         }
     }
 }

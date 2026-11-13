@@ -21,6 +21,20 @@ namespace EarthWallpaper
         private string _appPath = string.Empty;
 
         public LocationInfo? CurrentLocation { get; private set; }
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public QueueStatusInfo? LatestQueueStatus { get; set; }
+        public event Action<QueueStatusInfo>? OnQueueStatusUpdated;
+
+        public void RequestQueueStatus() => SendWebMessage("request_queue_status");
+        public void ReshuffleDeck() => SendWebMessage("reshuffle_deck");
+        public void FlushQueue() => SendWebMessage("flush_queue");
+        public void ApplyQueuedItem(int index)
+        {
+            if (_webView != null && _webView.CoreWebView2 != null)
+            {
+                _webView.CoreWebView2.PostWebMessageAsJson($"{{\"type\":\"apply_queued_item\",\"index\":{index}}}");
+            }
+        }
 
         public WallpaperForm()
         {
@@ -72,6 +86,7 @@ namespace EarthWallpaper
                 }
             });
 
+            var itemDev = new ToolStripMenuItem("🛠️ 开发者模式 (队列监控)", null, (s, e) => _petForm?.OpenGeminiHub(false, true));
             var itemReload = new ToolStripMenuItem("🔄 重载 / 重启应用 (Reload)", null, (s, e) => RestartApplication());
             
             var itemStartup = new ToolStripMenuItem { Text = "🚀 开机自启" };
@@ -96,6 +111,7 @@ namespace EarthWallpaper
                 itemGemini,
                 itemSkin,
                 new ToolStripSeparator(),
+                itemDev,
                 itemStartup,
                 itemReload,
                 itemExit
@@ -356,6 +372,25 @@ namespace EarthWallpaper
                     }
                     Program.Log($"WallpaperForm: CurrentLocation updated to {CurrentLocation.GetDisplayName()} ({CurrentLocation.Lat}, {CurrentLocation.Lng})");
                     _petForm?.NotifyLocationChanged(CurrentLocation);
+                }
+                else if (type == "queue_status" && root.TryGetProperty("data", out var qDataEl))
+                {
+                    try
+                    {
+                        var info = JsonSerializer.Deserialize<QueueStatusInfo>(qDataEl.GetRawText(), new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+                        if (info != null)
+                        {
+                            LatestQueueStatus = info;
+                            OnQueueStatusUpdated?.Invoke(info);
+                        }
+                    }
+                    catch (Exception qEx)
+                    {
+                        Program.Log($"Queue status parse error: {qEx.Message}");
+                    }
                 }
                 else if (type == "open_url" && root.TryGetProperty("url", out var urlProp))
                 {
