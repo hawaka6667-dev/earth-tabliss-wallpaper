@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-blue?style=flat-square&logo=windows" alt="Platform" />
-  <img src="https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet" alt=".NET" />
+  <img src="https://img.shields.io/github/v/release/hawaka6667-dev/earth-tabliss-wallpaper?style=flat-square&color=22c55e" alt="Latest Release" />
   <img src="https://img.shields.io/badge/CPU%20Idle-0%20FPS%20%7C%20~0.0%25-22c55e?style=flat-square" alt="Efficiency" />
   <img src="https://img.shields.io/badge/AI-Gemini%204%20Hydrogen-4285F4?style=flat-square&logo=google" alt="AI" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License" />
@@ -28,17 +28,16 @@
 
 ## 🚀 Quick Start
 
-### Requirements
-* Windows 10 (1903+) or Windows 11 (64-bit)
-* [.NET 10.0 Desktop Runtime](https://dotnet.microsoft.com/download)
+### Option 1: Download Release (Recommended)
+1. Download **[`EarthTabliss-v0.2.0-win-x64.zip`](https://github.com/hawaka6667-dev/earth-tabliss-wallpaper/releases/latest)** from GitHub Releases.
+2. Unzip and run `EarthWallpaper.exe` (or `start.bat`). Ready to use immediately!
 
-### Run
+### Option 2: Build from Source
 ```bash
 git clone https://github.com/hawaka6667-dev/earth-tabliss-wallpaper.git
 cd earth-tabliss-wallpaper
 dotnet run --project EarthWallpaper/EarthWallpaper.csproj
 ```
-*Or double-click `start.bat`.*
 
 ## 📄 License
 [MIT](LICENSE) · Imagery © Google Earth View.
