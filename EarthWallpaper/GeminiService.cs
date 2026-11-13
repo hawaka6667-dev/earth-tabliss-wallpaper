@@ -103,7 +103,7 @@ namespace EarthWallpaper
             try
             {
                 string cleanKey = apiKey.Trim();
-                string url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={cleanKey}";
+                string url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={cleanKey}";
                 var payload = new
                 {
                     contents = new[]
@@ -120,7 +120,7 @@ namespace EarthWallpaper
 
                 if (resp.IsSuccessStatusCode)
                 {
-                    return (true, "连接成功！Gemini 2.5 Flash 服务正常响应就绪。");
+                    return (true, "连接成功！Gemini 2.0 Flash 服务正常响应就绪。");
                 }
 
                 string errMsg = $"HTTP {(int)resp.StatusCode}";
@@ -153,7 +153,7 @@ namespace EarthWallpaper
 
         private static async Task<string> CallGeminiApiAsync(string apiKey, LocationInfo loc, string question, List<(string role, string text)> history)
         {
-            string url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
+            string url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={apiKey}";
 
             var contents = new List<object>();
 
