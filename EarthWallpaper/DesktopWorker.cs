@@ -73,9 +73,12 @@ namespace EarthWallpaper
         public const int SPIF_SENDCHANGE = 0x02;
 
         public const int GWL_STYLE = -16;
+        public const int GWL_EXSTYLE = -20;
         public const int WS_CHILD = 0x40000000;
         public const int WS_VISIBLE = 0x10000000;
         public const int WS_POPUP = unchecked((int)0x80000000);
+        public const int WS_EX_TOOLWINDOW = 0x00000080;
+        public const int WS_EX_NOACTIVATE = 0x08000000;
 
         public const int SM_XVIRTUALSCREEN = 76;
         public const int SM_YVIRTUALSCREEN = 77;
@@ -196,32 +199,43 @@ namespace EarthWallpaper
             return false;
         }
 
-        public static bool AttachPetToDesktop(IntPtr petHandle)
+        public static bool ConfigurePetFloatingWindow(IntPtr petHandle)
         {
             try
             {
-                IntPtr shellView = GetShellViewHandle();
-                Program.Log($"DesktopWorker: AttachPetToDesktop, shellView = {shellView}, petHandle = {petHandle}");
-                if (shellView == IntPtr.Zero)
-                {
-                    Program.Log("DesktopWorker: ShellView not found, falling back to floating toolwindow.");
-                    return false;
-                }
+                // Safely configure pet as an independent top-level toolwindow:
+                // 1. NEVER call SetParent into Explorer's SHELLDLL_DefView (prevents cross-process thread input desync & Alt latching)
+                // 2. Apply WS_EX_TOOLWINDOW (hides from Alt+Tab / taskbar) and WS_EX_NOACTIVATE (never steals keyboard focus)
+                int exStyle = GetWindowLong(petHandle, GWL_EXSTYLE);
+                SetWindowLong(petHandle, GWL_EXSTYLE, exStyle | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE);
 
-                int style = GetWindowLong(petHandle, GWL_STYLE);
-                SetWindowLong(petHandle, GWL_STYLE, (style | WS_CHILD | WS_VISIBLE) & ~WS_POPUP);
-                SetParent(petHandle, shellView);
-
-                // Ensure it sits at the top among siblings inside SHELLDLL_DefView (above desktop icons)
+                // Position cleanly without activating or stealing focus from user applications
                 SetWindowPos(petHandle, IntPtr.Zero, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
                 ShowWindow(petHandle, 1);
-                Program.Log("DesktopWorker: Attached pet to SHELLDLL_DefView successfully.");
+                Program.Log("DesktopWorker: Configured pet as safe floating toolwindow (isolated from Explorer message loop).");
                 return true;
             }
             catch (Exception ex)
             {
-                Program.Log($"DesktopWorker.AttachPetToDesktop error: {ex.Message}");
+                Program.Log($"DesktopWorker.ConfigurePetFloatingWindow error: {ex.Message}");
                 return false;
+            }
+        }
+
+        public static void DetachFromDesktop(IntPtr formHandle)
+        {
+            try
+            {
+                if (formHandle != IntPtr.Zero)
+                {
+                    SetParent(formHandle, IntPtr.Zero);
+                    ShowWindow(formHandle, 0 /* SW_HIDE */);
+                    Program.Log($"DesktopWorker: Detached window {formHandle} from parent cleanly.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Program.Log($"DesktopWorker.DetachFromDesktop error: {ex.Message}");
             }
         }
 

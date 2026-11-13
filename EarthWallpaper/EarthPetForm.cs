@@ -123,7 +123,8 @@ namespace EarthWallpaper
             get
             {
                 CreateParams cp = base.CreateParams;
-                cp.ExStyle |= 0x00000080; // WS_EX_TOOLWINDOW
+                cp.ExStyle |= 0x00000080; // WS_EX_TOOLWINDOW: Hidden from Alt+Tab and taskbar
+                cp.ExStyle |= 0x08000000; // WS_EX_NOACTIVATE: Never steals keyboard focus from user applications
                 return cp;
             }
         }
@@ -137,10 +138,8 @@ namespace EarthWallpaper
             path.AddEllipse(0, 0, Width, Height);
             Region = new Region(path);
 
-            // Pin to desktop layer (SHELLDLL_DefView):
-            // 1. Never minimizes on "Show Desktop" (Win+D)
-            // 2. Never floats above user application windows (Chrome, VS Code, etc.)
-            DesktopWorker.AttachPetToDesktop(Handle);
+            // Safe floating toolwindow configuration: zero cross-process SetParent, zero message-loop hijacking
+            DesktopWorker.ConfigurePetFloatingWindow(Handle);
 
             _bubbleForm = new PetBubbleForm(this, _wallpaperForm);
             _bubbleForm.CreateControl();

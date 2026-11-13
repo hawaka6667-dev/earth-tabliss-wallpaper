@@ -8,17 +8,6 @@ namespace EarthWallpaper
 {
     static class Program
     {
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern IntPtr OpenDesktop(string lpszDesktop, uint dwFlags, bool fInherit, uint dwDesiredAccess);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern bool SetThreadDesktop(IntPtr hDesktop);
-
-        [DllImport("kernel32.dll")]
-        public static extern uint GetLastError();
-
-        private const uint DESKTOP_ALL_ACCESS = 0x01FF;
-
         private static Mutex? _mutex;
         public static string LogFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "debug.log");
 
@@ -207,18 +196,7 @@ namespace EarthWallpaper
         {
             try
             {
-                Log("UI Thread started, attempting to bind to user Default desktop...");
-                IntPtr hDefault = OpenDesktop("Default", 0, false, DESKTOP_ALL_ACCESS);
-                if (hDefault != IntPtr.Zero)
-                {
-                    bool switched = SetThreadDesktop(hDefault);
-                    Log($"Switched UI ThreadDesktop to Default: {switched} (hDefault={hDefault}, lastError={GetLastError()})");
-                }
-                else
-                {
-                    Log($"OpenDesktop(Default) failed, lastError={GetLastError()}");
-                }
-
+                Log("UI Thread started safely in standard interactive user session.");
                 Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
                 AppDomain.CurrentDomain.UnhandledException += (s, e) =>
                 {

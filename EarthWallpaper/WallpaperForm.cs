@@ -462,12 +462,7 @@ namespace EarthWallpaper
             // Detach window from WorkerW before destroying
             if (_isDesktopAttached)
             {
-                try
-                {
-                    DesktopWorker.SetParent(Handle, IntPtr.Zero);
-                    DesktopWorker.ShowWindow(Handle, 0 /* SW_HIDE */);
-                }
-                catch { }
+                DesktopWorker.DetachFromDesktop(Handle);
             }
 
             // Always restore original Windows wallpaper on exit
