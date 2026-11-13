@@ -101,21 +101,17 @@ namespace EarthWallpaper
             MouseDown += OnPetMouseDown;
             MouseMove += OnPetMouseMove;
             MouseUp += OnPetMouseUp;
+            MouseDoubleClick += OnPetMouseDoubleClick;
             MouseEnter += (s, e) =>
             {
                 _isHovered = true;
                 Invalidate();
-                if (!IsAnyModalOrMenuOpen() && _bubbleForm != null && !_bubbleForm.Visible)
-                {
-                    var loc = _wallpaperForm.CurrentLocation;
-                    if (loc != null)
-                    {
-                        bool isBookmarked = BookmarkManager.IsBookmarked(loc.Lat, loc.Lng);
-                        _bubbleForm.ShowLandmarkBubble(loc.GetDisplayName(), isBookmarked);
-                    }
-                }
             };
-            MouseLeave += (s, e) => { _isHovered = false; Invalidate(); };
+            MouseLeave += (s, e) =>
+            {
+                _isHovered = false;
+                Invalidate();
+            };
 
             ResumeLayout(false);
 
@@ -201,7 +197,11 @@ namespace EarthWallpaper
                 _isDragging = false;
                 _mouseDownLocation = Location;
                 _dragStartCursor = Cursor.Position;
-                _bubbleForm?.Hide();
+            }
+            else if (e.Button == MouseButtons.Right)
+            {
+                // Right click: Toggle Pet Management Menu
+                TogglePetMenu();
             }
         }
 
@@ -250,7 +250,46 @@ namespace EarthWallpaper
 
                 if (!wasDragging)
                 {
-                    TogglePetMenu();
+                    // Left click (single click): Toggle Interactive Pet Speech Bubble
+                    ToggleBubble();
+                }
+            }
+        }
+
+        private void OnPetMouseDoubleClick(object? sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                // Left double click: Directly open Earth Hub
+                _bubbleForm?.Hide();
+                _menuForm?.Hide();
+                OpenGeminiHub();
+            }
+        }
+
+        public void ToggleBubble()
+        {
+            if (_bubbleForm == null || _bubbleForm.IsDisposed)
+            {
+                _bubbleForm = new PetBubbleForm(this, _wallpaperForm);
+            }
+
+            if (_bubbleForm.Visible)
+            {
+                _bubbleForm.Hide();
+            }
+            else
+            {
+                _menuForm?.Hide();
+                var loc = _wallpaperForm.CurrentLocation;
+                if (loc != null)
+                {
+                    bool isBookmarked = BookmarkManager.IsBookmarked(loc.Lat, loc.Lng);
+                    _bubbleForm.ShowLandmarkBubble(loc.GetDisplayName(), isBookmarked);
+                }
+                else
+                {
+                    _bubbleForm.ShowNotificationBubble("🌍 漫游蔚蓝星球", "点击快速漫游行星地表");
                 }
             }
         }
