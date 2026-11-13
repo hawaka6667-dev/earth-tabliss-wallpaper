@@ -6,22 +6,14 @@
 (function () {
   'use strict';
 
-  const LOCAL_FALLBACKS = [
-    {
-      country: 'Windows 桌面原色',
-      region: '电脑原生壁纸 (安全兜底)',
-      coords: { lat: '0.000000', lng: '0.000000' },
-      map: '',
-      image: 'assets/original_wallpaper.png'
-    },
-    {
-      country: '蔚蓝星球',
-      region: '行星地貌精选 (离线底图)',
-      coords: { lat: '-10.040181', lng: '143.560709' },
-      map: 'https://earth.google.com/web/',
-      image: 'assets/default_earth.jpg'
-    }
-  ];
+  const OFFLINE_FALLBACK = {
+    id: 'offline_earth',
+    country: '蔚蓝星球',
+    region: '行星地貌精选 (离线底图)',
+    coords: { lat: '-10.040181', lng: '143.560709' },
+    map: 'https://earth.google.com/web/',
+    image: 'assets/default_earth.jpg'
+  };
 
   const state = {
     locations: [],
@@ -31,21 +23,12 @@
     _skipHistory: false,
     loadingCount: 0,
     maxQueueSize: 5,
-    localFallbackIndex: 0,
     activeLayer: 'a',
     isHudVisible: true,
-    currentLocation: LOCAL_FALLBACKS[1],
-    visitedIds: new Set(),
+    currentLocation: OFFLINE_FALLBACK,
     shuffledIndices: [],
     shufflePtr: 0
   };
-
-  // Immediate queue seeding with local offline assets so queue length is > 0 from millisecond 0
-  LOCAL_FALLBACKS.forEach(item => {
-    const img = new Image();
-    img.src = item.image;
-    state.preloadQueue.push({ item, img });
-  });
 
   const el = {
     bgA: document.getElementById('bg-layer-a'),
@@ -110,11 +93,10 @@
     return { lat: '0.000000', lng: '0.000000' };
   }
 
-  // 3. Preload Queue Buffer Engine (Handles Initial Load & Rapid Continuous Next Requests)
+  // 3. Preload Queue Buffer Engine (Fisher-Yates Dynamic Shuffle Deck)
   function initShuffleDeck() {
     if (!state.locations || state.locations.length === 0) return;
     state.shuffledIndices = Array.from({ length: state.locations.length }, (_, i) => i);
-    // Fisher-Yates shuffle
     for (let i = state.shuffledIndices.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       const tmp = state.shuffledIndices[i];
@@ -151,15 +133,8 @@
         state.loadingCount--;
         if (success) {
           state.preloadQueue.push({ item: candidate, img: img });
-        } else {
-          // If remote image fails, only fallback to offline asset if queue is completely empty
-          if (state.preloadQueue.length === 0) {
-            const fallback = LOCAL_FALLBACKS[state.localFallbackIndex++ % LOCAL_FALLBACKS.length];
-            const fImg = new Image();
-            fImg.src = fallback.image;
-            state.preloadQueue.push({ item: fallback, img: fImg });
-          }
         }
+        // If one fails or succeeds, keep queue full
         if (state.preloadQueue.length + state.loadingCount < state.maxQueueSize) {
           fillPreloadQueue();
         }
@@ -168,10 +143,10 @@
       img.onload = () => onDone(true);
       img.onerror = () => onDone(false);
 
-      // Network safety guard: 8s abort so a hanging request doesn't clog the slot
+      // 6s timeout guard for slow network
       setTimeout(() => {
         if (!resolved) onDone(false);
-      }, 8000);
+      }, 6000);
 
       img.src = candidate.image;
     }
@@ -179,12 +154,12 @@
 
   // 4. Apply Wallpaper & Double-Buffer Crossfade (0ms switch, zero black screen)
   function applyWallpaper(item) {
-    if (!item) return;
+    if (!item || !item.image) return;
 
     // Push current to history stack (unless navigating backwards)
-    if (!state._skipHistory && state.currentLocation) {
+    if (!state._skipHistory && state.currentLocation && state.currentLocation.id !== 'offline_earth') {
       state.historyStack.push(state.currentLocation);
-      if (state.historyStack.length > 20) state.historyStack.shift();
+      if (state.historyStack.length > 25) state.historyStack.shift();
     }
     state._skipHistory = false;
 
@@ -197,11 +172,13 @@
     el.valLat.textContent = item.coords.lat;
     el.valLng.textContent = item.coords.lng;
 
-    // Double-buffer swap with fallback chain (Primary image -> original PC wallpaper -> default earth)
+    // Double-buffer swap with clean direct image URL
     const targetLayer = state.activeLayer === 'a' ? el.bgB : el.bgA;
     const oldLayer = state.activeLayer === 'a' ? el.bgA : el.bgB;
 
-    targetLayer.style.backgroundImage = `url("${item.image}"), url("assets/original_wallpaper.png"), url("assets/default_earth.jpg")`;
+    targetLayer.style.backgroundImage = `url("${item.image}")`;
+    targetLayer.style.backgroundSize = 'cover';
+    targetLayer.style.backgroundPosition = 'center center';
     targetLayer.classList.add('active');
     oldLayer.classList.remove('active');
 
@@ -225,36 +202,27 @@
 
   function nextWallpaper() {
     if (state.preloadQueue.length > 0) {
-      // 1. Instant pop from preloaded memory queue (0ms, zero black screen guaranteed)
+      // 1. Instant pop from preloaded memory queue (0ms, zero black screen)
       const next = state.preloadQueue.shift();
       applyWallpaper(next.item);
       fillPreloadQueue(); // Replenish buffer queue
       return;
     }
 
-    // 2. Queue is temporarily empty (e.g. rapid user clicks or network delay)
-    // NEVER crossfade into a black void! Keep the current image visible while loading candidate.
-    if (!state.locations || state.locations.length === 0) {
-      const fallback = LOCAL_FALLBACKS[state.localFallbackIndex++ % LOCAL_FALLBACKS.length];
-      applyWallpaper(fallback);
-      return;
-    }
-
-    state.currentIndex = (state.currentIndex + 1) % state.locations.length;
-    const candidate = state.locations[state.currentIndex];
+    // 2. Queue empty: get next candidate and preload before applying (NEVER flash black)
+    const candidate = getNextCandidate();
+    if (!candidate) return;
     candidate.coords = parseCoordinates(candidate.map);
 
     const testImg = new Image();
     let isHandled = false;
 
-    // 2.0s network timeout: if download lags, smoothly fall back to local placeholder / original wallpaper
     const timeoutTimer = setTimeout(() => {
       if (isHandled) return;
       isHandled = true;
-      const fallback = LOCAL_FALLBACKS[state.localFallbackIndex++ % LOCAL_FALLBACKS.length];
-      applyWallpaper(fallback);
+      // Do not apply broken black screen; try next in background
       fillPreloadQueue();
-    }, 2000);
+    }, 3000);
 
     testImg.onload = () => {
       if (isHandled) return;
@@ -268,8 +236,6 @@
       if (isHandled) return;
       isHandled = true;
       clearTimeout(timeoutTimer);
-      const fallback = LOCAL_FALLBACKS[state.localFallbackIndex++ % LOCAL_FALLBACKS.length];
-      applyWallpaper(fallback);
       fillPreloadQueue();
     };
 
@@ -277,9 +243,9 @@
   }
 
   function previousWallpaper() {
-    if (state.historyStack.length === 0) return; // Nothing in history
+    if (state.historyStack.length === 0) return;
     const prev = state.historyStack.pop();
-    state._skipHistory = true; // Don't re-push to history when going back
+    state._skipHistory = true;
     applyWallpaper(prev);
   }
 
@@ -288,71 +254,110 @@
       const resp = await fetch('data/earthview.json');
       state.locations = await resp.json();
       initShuffleDeck();
-      // Drop initial offline placeholders once real remote images arrive in queue
-      fillPreloadQueue();
+
+      // Immediately preload and apply the very first fresh online location
+      const firstCandidate = getNextCandidate();
+      if (firstCandidate && firstCandidate.image) {
+        firstCandidate.coords = parseCoordinates(firstCandidate.map);
+        const fImg = new Image();
+        let loaded = false;
+
+        fImg.onload = () => {
+          if (loaded) return;
+          loaded = true;
+          applyWallpaper(firstCandidate);
+          fillPreloadQueue();
+        };
+
+        fImg.onerror = () => {
+          if (loaded) return;
+          loaded = true;
+          const retry = getNextCandidate();
+          if (retry) applyWallpaper(retry);
+          fillPreloadQueue();
+        };
+
+        // 2.5s network timeout on startup
+        setTimeout(() => {
+          if (!loaded) {
+            loaded = true;
+            applyWallpaper(firstCandidate);
+            fillPreloadQueue();
+          }
+        }, 2500);
+
+        fImg.src = firstCandidate.image;
+      } else {
+        fillPreloadQueue();
+      }
     } catch (err) {
       console.error('[EarthWallpaper] Failed to load earthview.json:', err);
+      applyWallpaper(OFFLINE_FALLBACK);
     }
   }
 
-  // 5. Toggle HUD Visibility
-  function toggleHud(visible) {
-    if (typeof visible === 'boolean') {
-      state.isHudVisible = visible;
-    } else {
-      state.isHudVisible = !state.isHudVisible;
-    }
-    const op = state.isHudVisible ? '1' : '0';
-    if (el.hudCenter) el.hudCenter.style.opacity = op;
-    if (el.hudBottom) el.hudBottom.style.opacity = op;
-  }
-
-  // 6. Gemini Analysis
+  // 5. Drawer & Interactive Gemini Geomorphology Analysis
   function openGemini() {
     if (!state.currentLocation) return;
     const loc = state.currentLocation;
-    el.geminiTargetLoc.textContent = `${loc.country} ${loc.region ? '- ' + loc.region : ''}`;
-    el.geminiTargetCoords.textContent = `${loc.coords.lat}° N, ${loc.coords.lng}° E`;
+
+    el.geminiTargetLoc.textContent = `${loc.country || ''} - ${loc.region || ''}`;
+    el.geminiTargetCoords.textContent = `LAT: ${loc.coords?.lat || '0.000000'} • LNG: ${loc.coords?.lng || '0.000000'}`;
+
+    el.resGeomorphology.textContent = '卫星光谱与遥感特征计算中...';
+    el.resFormation.textContent = '地质年代与演化驱动力反演中...';
+    el.resResearchNotes.textContent = '正在连接 Gemini 地质大模型推理集群...';
+
     el.drawerGemini.classList.add('open');
 
-    // Run simulated / heuristic analysis
-    el.resGeomorphology.textContent = `该区域位于 ${loc.country} (${loc.coords.lat}, ${loc.coords.lng})。卫星光学影像呈现出显著的地质风化冲蚀特征，明暗光影展示了断层隆起与沉积水系构造。`;
-    el.resFormation.textContent = `地质演变简析：构造应力与长期侵蚀交织，形成了独特的宏观地球脉络。`;
-    el.resResearchNotes.innerHTML = `
-      <li>推荐在 Google Earth 中调整倾角 (Tilt 45°) 逆光观测高程落差。</li>
-      <li>可使用 Google Earth 历史时间轴观测近 30 年局部沉积与水文变迁。</li>
-    `;
+    if (window.chrome && window.chrome.webview) {
+      window.chrome.webview.postMessage({
+        type: 'request_gemini_analysis',
+        data: {
+          country: loc.country,
+          region: loc.region,
+          coords: loc.coords,
+          map: loc.map
+        }
+      });
+    }
   }
 
   function closeGemini() {
     el.drawerGemini.classList.remove('open');
   }
 
-  // 7. IPC Listener from C# Host
+  // 6. IPC Communication with C# WinForms Host
   if (window.chrome && window.chrome.webview) {
     window.chrome.webview.addEventListener('message', (event) => {
       const msg = event.data;
       if (!msg) return;
+
       if (msg.type === 'next_wallpaper') {
         nextWallpaper();
       } else if (msg.type === 'previous_wallpaper') {
         previousWallpaper();
-      } else if (msg.type === 'toggle_hud') {
-        toggleHud(msg.visible);
-      } else if (msg.type === 'open_gemini') {
-        openGemini();
+      } else if (msg.type === 'power_state') {
+        if (msg.data === 'battery') {
+          console.log('[Engine] Power governor: Battery detected, zero animation guaranteed.');
+        }
+      } else if (msg.type === 'gemini_result') {
+        const res = msg.data;
+        if (res) {
+          el.resGeomorphology.textContent = res.geomorphology || '地貌分析数据解析完毕';
+          el.resFormation.textContent = res.formation || '成因推演完毕';
+          el.resResearchNotes.textContent = res.researchNotes || '科研笔记已归档';
+        }
+      } else if (msg.type === 'gemini_error') {
+        el.resGeomorphology.textContent = '分析请求受阻';
+        el.resFormation.textContent = msg.data || '未能连接到推理引擎';
+        el.resResearchNotes.textContent = '请检查网络连接或 API 配置';
       } else if (msg.type === 'set_custom_wallpaper') {
         const item = msg.data;
         if (!item || !item.image) return;
         const img = new Image();
         img.onload = () => applyWallpaper(item);
-        img.onerror = () => applyWallpaper({
-          country: item.country || '地标收藏',
-          region: item.region || '自定义地貌',
-          coords: { lat: item.lat || '0.000000', lng: item.lng || '0.000000' },
-          map: item.map || '',
-          image: 'assets/default_earth.jpg'
-        });
+        img.onerror = () => applyWallpaper(OFFLINE_FALLBACK);
         img.src = item.image;
       }
     });
@@ -361,17 +366,9 @@
   if (el.btnCloseGemini) el.btnCloseGemini.addEventListener('click', closeGemini);
   if (el.btnRunGemini) el.btnRunGemini.addEventListener('click', openGemini);
 
-  // Notify C# Host of initial default location immediately
-  if (window.chrome && window.chrome.webview) {
-    window.chrome.webview.postMessage({
-      type: 'location_changed',
-      data: state.currentLocation
-    });
-  }
-
   loadEarthLocations();
 
-  // Auto-switch wallpaper every 5 minutes (0.5s fade, then 0 FPS)
+  // Auto-switch wallpaper every 5 minutes (0.6s fade, then 0 FPS)
   setInterval(() => {
     nextWallpaper();
   }, 5 * 60 * 1000);

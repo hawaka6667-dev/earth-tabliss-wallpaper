@@ -141,10 +141,11 @@ namespace EarthWallpaper
             try
             {
                 Program.Log("WallpaperForm: Restarting application...");
+                DesktopWorker.IsRestarting = true;
+
                 string startBat = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "start.bat"));
                 if (!File.Exists(startBat)) startBat = @"F:\antigravity\earth屏保\start.bat";
 
-                // Ensure mutex and desktop bindings are released BEFORE spawning new instance
                 _isExiting = true;
                 _powerGovernor?.Dispose();
                 if (_trayIcon != null)
@@ -154,17 +155,7 @@ namespace EarthWallpaper
                 }
                 _petForm?.Dispose();
 
-                if (_isDesktopAttached)
-                {
-                    try
-                    {
-                        DesktopWorker.SetParent(Handle, IntPtr.Zero);
-                        DesktopWorker.ShowWindow(Handle, 0 /* SW_HIDE */);
-                    }
-                    catch { }
-                }
-
-                // Launch batch or exe directly
+                // Cleanly exit current process. start.bat will wait and spawn a clean instance
                 if (File.Exists(startBat))
                 {
                     Process.Start(new ProcessStartInfo(startBat) { UseShellExecute = true });

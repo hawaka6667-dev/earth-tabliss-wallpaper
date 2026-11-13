@@ -20,7 +20,6 @@ namespace EarthWallpaper
         private PetMenuForm? _menuForm;
         private GeminiHubForm? _hubForm;
         private PetBubbleForm? _bubbleForm;
-        private ToolTip? _petTooltip;
 
         private bool _isMouseDown = false;
         private bool _isDragging = false;
@@ -99,20 +98,23 @@ namespace EarthWallpaper
             var workArea = Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1536, 816);
             Location = new Point(workArea.Right - 100, workArea.Bottom - 140);
 
-            _petTooltip = new ToolTip
-            {
-                BackColor = Color.FromArgb(15, 23, 42),
-                ForeColor = Color.FromArgb(241, 245, 249),
-                InitialDelay = 500,
-                AutoPopDelay = 4000,
-                IsBalloon = false // Never use Win32 balloon tooltip
-            };
-            _petTooltip.SetToolTip(this, "🌍 小地球桌宠 (点击唤起控制中枢)");
-
             MouseDown += OnPetMouseDown;
             MouseMove += OnPetMouseMove;
             MouseUp += OnPetMouseUp;
-            MouseEnter += (s, e) => { _isHovered = true; Invalidate(); };
+            MouseEnter += (s, e) =>
+            {
+                _isHovered = true;
+                Invalidate();
+                if (!IsAnyModalOrMenuOpen() && _bubbleForm != null && !_bubbleForm.Visible)
+                {
+                    var loc = _wallpaperForm.CurrentLocation;
+                    if (loc != null)
+                    {
+                        bool isBookmarked = BookmarkManager.IsBookmarked(loc.Lat, loc.Lng);
+                        _bubbleForm.ShowLandmarkBubble(loc.GetDisplayName(), isBookmarked);
+                    }
+                }
+            };
             MouseLeave += (s, e) => { _isHovered = false; Invalidate(); };
 
             ResumeLayout(false);
@@ -148,10 +150,28 @@ namespace EarthWallpaper
             _bubbleForm.CreateControl();
         }
 
+        public bool IsAnyModalOrMenuOpen()
+        {
+            if (_menuForm != null && !_menuForm.IsDisposed && _menuForm.Visible) return true;
+            if (_hubForm != null && !_hubForm.IsDisposed && _hubForm.Visible) return true;
+            return false;
+        }
+
         public void NotifyLocationChanged(LocationInfo? loc)
         {
             if (loc == null) return;
             _menuForm?.UpdateLocationDisplay(loc);
+
+            // 1. If Hub or PetMenu is open, do not pop up bubble
+            if (IsAnyModalOrMenuOpen()) return;
+
+            // 2. Do not pop up over active user applications (Obsidian, VS Code, Chrome, etc.)
+            IntPtr fg = DesktopWorker.GetForegroundWindow();
+            if (fg != IntPtr.Zero && !DesktopWorker.IsDesktopWindow(fg))
+            {
+                Program.Log("DesktopWorker: User is in foreground app, suppressing automatic bubble popup.");
+                return;
+            }
 
             try
             {
@@ -237,6 +257,8 @@ namespace EarthWallpaper
 
         public void TogglePetMenu()
         {
+            _bubbleForm?.Hide();
+
             if (_menuForm == null || _menuForm.IsDisposed)
             {
                 _menuForm = new PetMenuForm(_wallpaperForm, this);
@@ -259,6 +281,9 @@ namespace EarthWallpaper
 
         public void OpenGeminiHub(bool openToBookmarks = false)
         {
+            _bubbleForm?.Hide();
+            _menuForm?.Hide();
+
             if (_hubForm != null && !_hubForm.IsDisposed)
             {
                 _hubForm.BringToFront();
@@ -435,7 +460,6 @@ namespace EarthWallpaper
                 _menuForm?.Dispose();
                 _hubForm?.Dispose();
                 _bubbleForm?.Dispose();
-                _petTooltip?.Dispose();
             }
             base.Dispose(disposing);
         }

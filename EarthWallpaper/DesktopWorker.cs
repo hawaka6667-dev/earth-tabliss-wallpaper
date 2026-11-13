@@ -91,6 +91,20 @@ namespace EarthWallpaper
         public static IntPtr WorkerWHandle { get; private set; } = IntPtr.Zero;
         public static IntPtr ProgmanHandle { get; private set; } = IntPtr.Zero;
         public static IntPtr ShellViewHandle { get; private set; } = IntPtr.Zero;
+        public static bool IsRestarting { get; set; } = false;
+
+        public static bool IsDesktopWindow(IntPtr hWnd)
+        {
+            if (hWnd == IntPtr.Zero) return true;
+            if (hWnd == ProgmanHandle || hWnd == ShellViewHandle || hWnd == WorkerWHandle) return true;
+
+            var sb = new System.Text.StringBuilder(256);
+            GetClassName(hWnd, sb, 256);
+            string cls = sb.ToString();
+            if (cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd") return true;
+
+            return false;
+        }
 
         public static bool AttachToDesktop(IntPtr formHandle)
         {
@@ -102,31 +116,60 @@ namespace EarthWallpaper
                 return false;
             }
 
-            // Send message 0x052C to Progman to spawn WorkerW behind icons
+            // Send message 0x052C to Progman to spawn/ensure WorkerW behind icons
             IntPtr result = IntPtr.Zero;
-            SendMessageTimeout(ProgmanHandle, 0x052C, IntPtr.Zero, IntPtr.Zero, 0x0002, 1000, out result);
+            SendMessageTimeout(ProgmanHandle, 0x052C, new IntPtr(0xD), new IntPtr(0x1), 0x0002, 1000, out result);
             Program.Log($"DesktopWorker: Sent 0x052C to Progman, result = {result}");
 
             IntPtr workerw = IntPtr.Zero;
+            IntPtr shellViewParent = IntPtr.Zero;
 
-            // Enumerate top-level windows to locate the WorkerW that sits behind SHELLDLL_DefView
+            // Enumerate top-level windows to locate SHELLDLL_DefView
             EnumWindows((hwnd, lParam) =>
             {
                 IntPtr shellView = FindWindowEx(hwnd, IntPtr.Zero, "SHELLDLL_DefView", null);
                 if (shellView != IntPtr.Zero)
                 {
                     ShellViewHandle = shellView;
+                    shellViewParent = hwnd;
                     Program.Log($"DesktopWorker: Found SHELLDLL_DefView ({shellView}) inside hwnd {hwnd}");
-                    workerw = FindWindowEx(IntPtr.Zero, hwnd, "WorkerW", null);
-                    Program.Log($"DesktopWorker: Sibling WorkerW behind it = {workerw}");
                 }
                 return true;
             }, IntPtr.Zero);
 
+            if (shellViewParent != IntPtr.Zero)
+            {
+                // The WorkerW behind the icons is the sibling WorkerW directly after shellViewParent
+                workerw = FindWindowEx(IntPtr.Zero, shellViewParent, "WorkerW", null);
+                Program.Log($"DesktopWorker: Sibling WorkerW behind it = {workerw}");
+            }
+
+            // Fallback: If no sibling WorkerW was found after shellViewParent, find the WorkerW without SHELLDLL_DefView
             if (workerw == IntPtr.Zero)
             {
-                workerw = FindWindowEx(IntPtr.Zero, IntPtr.Zero, "WorkerW", null);
-                Program.Log($"DesktopWorker: Fallback workerw = {workerw}");
+                EnumWindows((hwnd, lParam) =>
+                {
+                    var sb = new System.Text.StringBuilder(256);
+                    GetClassName(hwnd, sb, 256);
+                    if (sb.ToString() == "WorkerW")
+                    {
+                        IntPtr sv = FindWindowEx(hwnd, IntPtr.Zero, "SHELLDLL_DefView", null);
+                        if (sv == IntPtr.Zero)
+                        {
+                            workerw = hwnd;
+                            return false; // Found background WorkerW
+                        }
+                    }
+                    return true;
+                }, IntPtr.Zero);
+                Program.Log($"DesktopWorker: Fallback empty WorkerW = {workerw}");
+            }
+
+            // Final fallback: Progman itself
+            if (workerw == IntPtr.Zero)
+            {
+                workerw = ProgmanHandle;
+                Program.Log($"DesktopWorker: Fallback to Progman = {workerw}");
             }
 
             if (workerw != IntPtr.Zero)
@@ -145,7 +188,7 @@ namespace EarthWallpaper
 
                 SetWindowPos(formHandle, IntPtr.Zero, vx, vy, vcx, vcy, SWP_NOZORDER | SWP_SHOWWINDOW);
                 ShowWindow(formHandle, 1);
-                Program.Log($"[DesktopWorker] Attached to WorkerW ({workerw}) successfully. Bounds: {vx},{vy} {vcx}x{vcy}");
+                Program.Log($"[DesktopWorker] Attached to window ({workerw}) successfully. Bounds: {vx},{vy} {vcx}x{vcy}");
                 return true;
             }
 
@@ -293,36 +336,17 @@ namespace EarthWallpaper
 
         public static void RestoreOriginalWallpaper()
         {
+            if (IsRestarting)
+            {
+                Program.Log("DesktopWorker: Application is restarting, skipping wallpaper restore.");
+                return;
+            }
+
             try
             {
                 Program.Log("DesktopWorker: Restoring original desktop state...");
 
-                // 1. Close / Hide spawned WorkerW so it doesn't mask the wallpaper
-                if (WorkerWHandle != IntPtr.Zero)
-                {
-                    ShowWindow(WorkerWHandle, 0 /* SW_HIDE */);
-                    SendMessage(WorkerWHandle, 0x0010 /* WM_CLOSE */, IntPtr.Zero, IntPtr.Zero);
-                    WorkerWHandle = IntPtr.Zero;
-                }
-
-                // 2. Hide any orphaned blank WorkerW windows created by 0x052C
-                EnumWindows((hWnd, lParam) =>
-                {
-                    var sb = new System.Text.StringBuilder(256);
-                    GetClassName(hWnd, sb, 256);
-                    if (sb.ToString() == "WorkerW")
-                    {
-                        IntPtr defView = FindWindowEx(hWnd, IntPtr.Zero, "SHELLDLL_DefView", null);
-                        if (defView == IntPtr.Zero)
-                        {
-                            ShowWindow(hWnd, 0 /* SW_HIDE */);
-                            SendMessage(hWnd, 0x0010 /* WM_CLOSE */, IntPtr.Zero, IntPtr.Zero);
-                        }
-                    }
-                    return true;
-                }, IntPtr.Zero);
-
-                // 3. Ensure desktop icons are restored visible if previously hidden
+                // 1. Ensure desktop icons are restored visible if previously hidden
                 IntPtr shellView = GetShellViewHandle();
                 if (shellView != IntPtr.Zero)
                 {
@@ -334,7 +358,7 @@ namespace EarthWallpaper
                     }
                 }
 
-                // 4. Resolve verified original wallpaper path (MUST have an image extension!)
+                // 2. Resolve verified original wallpaper path (MUST have an image extension!)
                 string target = "";
                 if (File.Exists(BackupFilePath) && new FileInfo(BackupFilePath).Length > 1000)
                 {
