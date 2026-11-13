@@ -34,6 +34,8 @@ namespace EarthWallpaper
         // Bookmarks controls
         private FlowLayoutPanel? _pnlBookmarksList;
         private Label? _lblBookmarksCount;
+        private FlowLayoutPanel? _pnlCategoryTabs;
+        private string _selectedCategory = "全部";
 
         private List<(string role, string text)> _chatHistory = new();
 
@@ -54,7 +56,7 @@ namespace EarthWallpaper
             StartPosition = FormStartPosition.Manual;
             TopMost = true;
             DoubleBuffered = true;
-            Size = new Size(740, 580);
+            Size = new Size(840, 600);
             BackColor = Color.FromArgb(15, 23, 42); // Slate 900
             ForeColor = Color.FromArgb(241, 245, 249);
 
@@ -469,9 +471,9 @@ namespace EarthWallpaper
             var pnlHeader = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 44,
+                Height = 84,
                 BackColor = Color.FromArgb(20, 30, 48),
-                Padding = new Padding(16, 10, 16, 10)
+                Padding = new Padding(16, 8, 16, 8)
             };
 
             _lblBookmarksCount = new Label
@@ -479,17 +481,42 @@ namespace EarthWallpaper
                 Text = "⭐ 已收藏 0 处地球壮丽地貌",
                 Font = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.White,
-                Location = new Point(14, 12),
+                Location = new Point(14, 8),
                 AutoSize = true
             };
 
+            var btnAddCategory = new Button
+            {
+                Text = "+ 新建分类",
+                Font = new Font("Segoe UI", 9f),
+                ForeColor = Color.FromArgb(56, 189, 248),
+                BackColor = Color.FromArgb(30, 41, 59),
+                FlatStyle = FlatStyle.Flat,
+                Size = new Size(106, 26),
+                Location = new Point(container.Width - 128, 6),
+                Cursor = Cursors.Hand
+            };
+            btnAddCategory.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
+            btnAddCategory.Click += (s, e) => PromptCreateCategory();
+
+            _pnlCategoryTabs = new FlowLayoutPanel
+            {
+                Location = new Point(14, 38),
+                Size = new Size(container.Width - 28, 40),
+                AutoScroll = true,
+                WrapContents = false,
+                Height = 40
+            };
+
             pnlHeader.Controls.Add(_lblBookmarksCount);
+            pnlHeader.Controls.Add(btnAddCategory);
+            pnlHeader.Controls.Add(_pnlCategoryTabs);
             container.Controls.Add(pnlHeader);
 
             _pnlBookmarksList = new FlowLayoutPanel
             {
-                Location = new Point(16, 52),
-                Size = new Size(container.Width - 32, container.Height - 64),
+                Location = new Point(16, 92),
+                Size = new Size(container.Width - 32, container.Height - 102),
                 AutoScroll = true,
                 FlowDirection = FlowDirection.TopDown,
                 WrapContents = false
@@ -497,22 +524,99 @@ namespace EarthWallpaper
             container.Controls.Add(_pnlBookmarksList);
         }
 
+        private void PromptCreateCategory()
+        {
+            string cat = PromptInput("新建收藏分类", "请输入新分类/文件夹名称 (如: 城市、荒地、河流、好看):", "");
+            if (!string.IsNullOrWhiteSpace(cat))
+            {
+                _selectedCategory = cat.Trim();
+                RefreshBookmarksList();
+            }
+        }
+
+        private static string PromptInput(string title, string prompt, string defaultVal)
+        {
+            using var form = new Form
+            {
+                Width = 420,
+                Height = 180,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                Text = title,
+                StartPosition = FormStartPosition.CenterParent,
+                BackColor = Color.FromArgb(15, 23, 42),
+                ForeColor = Color.White,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            var lbl = new Label { Left = 20, Top = 16, Width = 360, Height = 36, Text = prompt, ForeColor = Color.FromArgb(226, 232, 240) };
+            var txt = new TextBox { Left = 20, Top = 58, Width = 360, Text = defaultVal, BackColor = Color.FromArgb(30, 41, 59), ForeColor = Color.White };
+            var btnOk = new Button { Text = "确定", Left = 200, Top = 96, Width = 84, Height = 28, DialogResult = DialogResult.OK, BackColor = Color.FromArgb(56, 189, 248), ForeColor = Color.Black, FlatStyle = FlatStyle.Flat };
+            var btnCancel = new Button { Text = "取消", Left = 296, Top = 96, Width = 84, Height = 28, DialogResult = DialogResult.Cancel, BackColor = Color.FromArgb(51, 65, 85), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+
+            form.Controls.Add(lbl);
+            form.Controls.Add(txt);
+            form.Controls.Add(btnOk);
+            form.Controls.Add(btnCancel);
+            form.AcceptButton = btnOk;
+            form.CancelButton = btnCancel;
+
+            return form.ShowDialog() == DialogResult.OK ? txt.Text.Trim() : string.Empty;
+        }
+
         public void RefreshBookmarksList()
         {
             if (_pnlBookmarksList == null) return;
             _pnlBookmarksList.Controls.Clear();
 
-            var items = BookmarkManager.GetAll();
-            if (_lblBookmarksCount != null)
+            // Render category filter chips
+            if (_pnlCategoryTabs != null)
             {
-                _lblBookmarksCount.Text = $"⭐ 已收藏 {items.Count} 处地球壮丽地貌 (点击可随时重温并设为壁纸)";
+                _pnlCategoryTabs.Controls.Clear();
+                var categories = BookmarkManager.GetAllCategories();
+                foreach (var cat in categories)
+                {
+                    bool isSelected = string.Equals(_selectedCategory, cat, StringComparison.OrdinalIgnoreCase);
+                    var btnChip = new Button
+                    {
+                        Text = cat,
+                        Font = new Font("Segoe UI", 8.5f, isSelected ? FontStyle.Bold : FontStyle.Regular),
+                        ForeColor = isSelected ? Color.White : Color.FromArgb(148, 163, 184),
+                        BackColor = isSelected ? Color.FromArgb(56, 189, 248) : Color.FromArgb(30, 41, 59),
+                        FlatStyle = FlatStyle.Flat,
+                        AutoSize = true,
+                        Height = 26,
+                        Margin = new Padding(0, 0, 6, 0),
+                        Cursor = Cursors.Hand
+                    };
+                    btnChip.FlatAppearance.BorderColor = isSelected ? Color.FromArgb(56, 189, 248) : Color.FromArgb(51, 65, 85);
+                    btnChip.Click += (s, e) =>
+                    {
+                        _selectedCategory = cat;
+                        RefreshBookmarksList();
+                    };
+                    _pnlCategoryTabs.Controls.Add(btnChip);
+                }
             }
 
-            if (items.Count == 0)
+            var allItems = BookmarkManager.GetAll();
+            var filteredItems = _selectedCategory == "全部"
+                ? allItems
+                : allItems.FindAll(b => string.Equals(b.Category, _selectedCategory, StringComparison.OrdinalIgnoreCase));
+
+            if (_lblBookmarksCount != null)
+            {
+                string catFilterDesc = _selectedCategory == "全部" ? "全部" : $"分类: {_selectedCategory}";
+                _lblBookmarksCount.Text = $"⭐ 已收藏 {allItems.Count} 处地貌 ({catFilterDesc} 显示 {filteredItems.Count} 项)";
+            }
+
+            if (filteredItems.Count == 0)
             {
                 var lblEmpty = new Label
                 {
-                    Text = "\n\n暂无收藏地标。\n\n在桌宠气泡或上方点击【⭐ 收藏此地标】，即可将当前美景永久保存！",
+                    Text = _selectedCategory == "全部"
+                        ? "\n\n暂无收藏地标。\n\n在桌宠气泡或上方点击【⭐ 收藏此地标】，即可将当前美景永久保存！"
+                        : $"\n\n当前分类【{_selectedCategory}】下暂无收藏地标。\n\n可在已有地标卡片上点击分类按钮，将地标移入该分类！",
                     Font = new Font("Segoe UI", 11f, FontStyle.Regular),
                     ForeColor = Color.FromArgb(148, 163, 184),
                     TextAlign = ContentAlignment.MiddleCenter,
@@ -522,7 +626,7 @@ namespace EarthWallpaper
                 return;
             }
 
-            foreach (var item in items)
+            foreach (var item in filteredItems)
             {
                 var pnlCard = new Panel
                 {
@@ -539,20 +643,45 @@ namespace EarthWallpaper
                     Font = new Font("Segoe UI", 10f, FontStyle.Bold),
                     ForeColor = Color.White,
                     Location = new Point(10, 12),
-                    Size = new Size(pnlCard.Width - 280, 22),
+                    Size = new Size(pnlCard.Width - 440, 22),
                     AutoEllipsis = true
                 };
 
+                string catText = string.IsNullOrWhiteSpace(item.Category) ? "默认" : item.Category;
                 var lblCoords = new Label
                 {
-                    Text = $"坐标: {item.Lat}, {item.Lng} • 收藏于 {item.SavedAt:MM-dd HH:mm}",
+                    Text = $"分类: [{catText}] • 坐标: {item.Lat}, {item.Lng} • {item.SavedAt:MM-dd HH:mm}",
                     Font = new Font("Consolas", 8.5f, FontStyle.Regular),
                     ForeColor = Color.FromArgb(148, 163, 184),
                     Location = new Point(12, 38),
-                    AutoSize = true
+                    Size = new Size(pnlCard.Width - 440, 20),
+                    AutoEllipsis = true
                 };
 
-                // Action buttons on card (Widened to 90px to prevent ANY text clipping)
+                // Move Category button
+                var btnMoveCat = new Button
+                {
+                    Text = $"📁 {catText}",
+                    Font = new Font("Segoe UI", 8.5f),
+                    ForeColor = Color.FromArgb(248, 250, 252),
+                    BackColor = Color.FromArgb(51, 65, 85),
+                    FlatStyle = FlatStyle.Flat,
+                    Size = new Size(82, 32),
+                    Location = new Point(pnlCard.Width - 424, 18),
+                    Cursor = Cursors.Hand
+                };
+                btnMoveCat.FlatAppearance.BorderColor = Color.FromArgb(71, 85, 105);
+                btnMoveCat.Click += (s, e) =>
+                {
+                    string newCat = PromptInput("修改分类", "请输入新的所属分类/文件夹:", item.Category);
+                    if (!string.IsNullOrWhiteSpace(newCat))
+                    {
+                        BookmarkManager.UpdateCategory(item.Id, newCat);
+                        RefreshBookmarksList();
+                    }
+                };
+
+                // Action buttons on card
                 var btnApply = new Button
                 {
                     Text = "设为壁纸",
@@ -560,8 +689,8 @@ namespace EarthWallpaper
                     ForeColor = Color.FromArgb(56, 189, 248),
                     BackColor = Color.FromArgb(15, 23, 42),
                     FlatStyle = FlatStyle.Flat,
-                    Size = new Size(92, 32),
-                    Location = new Point(pnlCard.Width - 316, 18),
+                    Size = new Size(84, 32),
+                    Location = new Point(pnlCard.Width - 328, 18),
                     Cursor = Cursors.Hand
                 };
                 btnApply.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
@@ -586,8 +715,8 @@ namespace EarthWallpaper
                     ForeColor = Color.FromArgb(52, 211, 153),
                     BackColor = Color.FromArgb(15, 23, 42),
                     FlatStyle = FlatStyle.Flat,
-                    Size = new Size(68, 32),
-                    Location = new Point(pnlCard.Width - 212, 18),
+                    Size = new Size(64, 32),
+                    Location = new Point(pnlCard.Width - 236, 18),
                     Cursor = Cursors.Hand
                 };
                 btnOpenEarth.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
@@ -604,8 +733,8 @@ namespace EarthWallpaper
                     ForeColor = Color.FromArgb(165, 180, 252),
                     BackColor = Color.FromArgb(15, 23, 42),
                     FlatStyle = FlatStyle.Flat,
-                    Size = new Size(84, 32),
-                    Location = new Point(pnlCard.Width - 134, 18),
+                    Size = new Size(82, 32),
+                    Location = new Point(pnlCard.Width - 164, 18),
                     Cursor = Cursors.Hand
                 };
                 btnAskThis.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
@@ -645,6 +774,7 @@ namespace EarthWallpaper
 
                 pnlCard.Controls.Add(lblName);
                 pnlCard.Controls.Add(lblCoords);
+                pnlCard.Controls.Add(btnMoveCat);
                 pnlCard.Controls.Add(btnApply);
                 pnlCard.Controls.Add(btnOpenEarth);
                 pnlCard.Controls.Add(btnAskThis);

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -8,46 +9,140 @@ namespace EarthWallpaper
     public class PetBubbleForm : Form
     {
         private readonly EarthPetForm _petForm;
+        private readonly WallpaperForm _wallpaperForm;
         private readonly System.Windows.Forms.Timer _dismissTimer;
+        
         private string _titleIcon = "🌍";
         private string _titleText = "漫游至新地标";
         private string _locationText = "";
-        private string _statusText = "";
         private bool _isBookmarked = false;
         private bool _tailOnBottom = true;
         private int _tailTipX = 0;
         private GraphicsPath? _bubblePath;
 
-        public PetBubbleForm(EarthPetForm petForm)
+        // Interactive quick action buttons inside bubble
+        private readonly Button _btnBookmark;
+        private readonly Button _btnPrev;
+        private readonly Button _btnNext;
+        private readonly Button _btnExplore;
+
+        public PetBubbleForm(EarthPetForm petForm, WallpaperForm wallpaperForm)
         {
             _petForm = petForm;
+            _wallpaperForm = wallpaperForm;
+
             FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.Manual;
             DoubleBuffered = true;
             BackColor = Color.FromArgb(15, 23, 42); // Slate 900
-            Cursor = Cursors.Hand;
-            Size = new Size(270, 88);
+            Cursor = Cursors.Default;
+            Size = new Size(310, 108);
 
-            _dismissTimer = new System.Windows.Forms.Timer { Interval = 5000 };
+            _dismissTimer = new System.Windows.Forms.Timer { Interval = 7000 };
             _dismissTimer.Tick += (s, e) =>
             {
                 _dismissTimer.Stop();
                 Hide();
             };
 
-            Click += (s, e) =>
+            MouseEnter += (s, e) => _dismissTimer.Stop();
+            MouseLeave += (s, e) =>
+            {
+                if (Visible && !ClientRectangle.Contains(PointToClient(Cursor.Position)))
+                {
+                    _dismissTimer.Start();
+                }
+            };
+
+            // Quick action buttons
+            _btnPrev = CreateBubbleButton("⏮ 上一张", Color.FromArgb(203, 213, 225), (s, e) =>
+            {
+                _dismissTimer.Stop();
+                _dismissTimer.Start();
+                _wallpaperForm.SendWebMessage("previous_wallpaper");
+            });
+
+            _btnNext = CreateBubbleButton("⏭ 下一张", Color.FromArgb(203, 213, 225), (s, e) =>
+            {
+                _dismissTimer.Stop();
+                _dismissTimer.Start();
+                _wallpaperForm.SendWebMessage("next_wallpaper");
+            });
+
+            _btnBookmark = CreateBubbleButton("⭐ 收藏", Color.FromArgb(250, 204, 21), (s, e) =>
+            {
+                _dismissTimer.Stop();
+                _dismissTimer.Start();
+                var loc = _wallpaperForm.CurrentLocation;
+                if (loc != null)
+                {
+                    BookmarkManager.ToggleBookmark(loc, out bool nowBm);
+                    UpdateBookmarkVisual(nowBm);
+                }
+            });
+
+            _btnExplore = CreateBubbleButton("研判/详情", Color.FromArgb(56, 189, 248), (s, e) =>
             {
                 _dismissTimer.Stop();
                 Hide();
                 _petForm.OpenHub();
-            };
+            });
 
-            MouseEnter += (s, e) => _dismissTimer.Stop();
-            MouseLeave += (s, e) =>
+            Controls.Add(_btnPrev);
+            Controls.Add(_btnNext);
+            Controls.Add(_btnBookmark);
+            Controls.Add(_btnExplore);
+
+            LayoutButtons();
+        }
+
+        private Button CreateBubbleButton(string text, Color foreColor, EventHandler onClick)
+        {
+            var btn = new Button
             {
-                if (Visible) _dismissTimer.Start();
+                Text = text,
+                Font = new Font("Segoe UI", 8.2f, FontStyle.Bold),
+                ForeColor = foreColor,
+                BackColor = Color.FromArgb(30, 41, 59), // Slate 800
+                FlatStyle = FlatStyle.Flat,
+                Height = 26,
+                Cursor = Cursors.Hand
             };
+            btn.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
+            btn.FlatAppearance.BorderSize = 1;
+            btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(51, 65, 85);
+            btn.Click += onClick;
+            btn.MouseEnter += (s, e) => _dismissTimer.Stop();
+            btn.MouseLeave += (s, e) =>
+            {
+                if (Visible && !ClientRectangle.Contains(PointToClient(Cursor.Position)))
+                {
+                    _dismissTimer.Start();
+                }
+            };
+            return btn;
+        }
+
+        private void LayoutButtons()
+        {
+            int btnY = _tailOnBottom ? 56 : 64;
+            int totalW = Width - 24;
+            int gap = 5;
+            int btnW = (totalW - gap * 3) / 4;
+
+            _btnPrev.SetBounds(12, btnY, btnW, 26);
+            _btnNext.SetBounds(12 + (btnW + gap), btnY, btnW, 26);
+            _btnBookmark.SetBounds(12 + (btnW + gap) * 2, btnY, btnW, 26);
+            _btnExplore.SetBounds(12 + (btnW + gap) * 3, btnY, totalW - (btnW + gap) * 3, 26);
+        }
+
+        private void UpdateBookmarkVisual(bool isBm)
+        {
+            _isBookmarked = isBm;
+            _btnBookmark.Text = isBm ? "★ 已藏" : "⭐ 收藏";
+            _btnBookmark.ForeColor = isBm ? Color.FromArgb(250, 204, 21) : Color.FromArgb(226, 232, 240);
+            Invalidate();
         }
 
         protected override CreateParams CreateParams
@@ -56,7 +151,7 @@ namespace EarthWallpaper
             {
                 CreateParams cp = base.CreateParams;
                 cp.ExStyle |= 0x00000080; // WS_EX_TOOLWINDOW
-                cp.ExStyle |= 0x08000000; // WS_EX_NOACTIVATE (Never steal focus)
+                cp.ExStyle |= 0x08000000; // WS_EX_NOACTIVATE
                 return cp;
             }
         }
@@ -64,7 +159,6 @@ namespace EarthWallpaper
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
-            // Pin bubble strictly to desktop icon layer (SHELLDLL_DefView) so it NEVER floats above user apps
             DesktopWorker.AttachPetToDesktop(Handle);
         }
 
@@ -73,9 +167,7 @@ namespace EarthWallpaper
             _titleIcon = "🌍";
             _titleText = "漫游至新地标";
             _locationText = locationName;
-            _isBookmarked = isBookmarked;
-            _statusText = isBookmarked ? "已收藏" : "未收藏";
-
+            UpdateBookmarkVisual(isBookmarked);
             PositionAndShow();
         }
 
@@ -85,8 +177,6 @@ namespace EarthWallpaper
             _titleText = title;
             _locationText = message;
             _isBookmarked = false;
-            _statusText = "已同步";
-
             PositionAndShow();
         }
 
@@ -99,7 +189,6 @@ namespace EarthWallpaper
 
             var screen = Screen.FromControl(_petForm)?.WorkingArea ?? Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1920, 1080);
 
-            // Determine if bubble should sit above or below pet
             int bubbleTop = petBounds.Top - Height - 6;
             if (bubbleTop < screen.Top + 10)
             {
@@ -111,15 +200,14 @@ namespace EarthWallpaper
                 _tailOnBottom = true;
             }
 
-            // Horizontally align bubble near pet's right edge
             int bubbleLeft = petCenterX - Width + 42;
             bubbleLeft = Math.Clamp(bubbleLeft, screen.Left + 10, screen.Right - Width - 10);
 
-            // Tail tip should point directly at pet's center horizontally
             _tailTipX = petCenterX - bubbleLeft;
             _tailTipX = Math.Clamp(_tailTipX, 28, Width - 28);
 
             Location = new Point(bubbleLeft, bubbleTop);
+            LayoutButtons();
             RebuildPath();
 
             _dismissTimer.Stop();
@@ -145,41 +233,29 @@ namespace EarthWallpaper
             if (_tailOnBottom)
             {
                 int bodyBottom = Height - tailH - 1;
-                // Top-left
                 _bubblePath.AddArc(0, 0, d, d, 180, 90);
-                // Top-right
                 _bubblePath.AddArc(Width - 1 - d, 0, d, d, 270, 90);
-                // Bottom-right
                 _bubblePath.AddArc(Width - 1 - d, bodyBottom - d, d, d, 0, 90);
 
-                // Bottom line to right side of tail
                 _bubblePath.AddLine(Width - 1 - r, bodyBottom, _tailTipX + tailW, bodyBottom);
-                // Tail point down to pet
                 _bubblePath.AddLine(_tailTipX + tailW, bodyBottom, _tailTipX, Height - 1);
                 _bubblePath.AddLine(_tailTipX, Height - 1, _tailTipX - tailW, bodyBottom);
-                // Bottom line from left side of tail to bottom-left corner
                 _bubblePath.AddLine(_tailTipX - tailW, bodyBottom, r, bodyBottom);
 
-                // Bottom-left
                 _bubblePath.AddArc(0, bodyBottom - d, d, d, 90, 90);
                 _bubblePath.CloseFigure();
             }
             else
             {
                 int bodyTop = tailH;
-                // Top-left after corner to left side of tail
                 _bubblePath.AddArc(0, bodyTop, d, d, 180, 90);
                 _bubblePath.AddLine(r, bodyTop, _tailTipX - tailW, bodyTop);
-                // Tail point up to pet
                 _bubblePath.AddLine(_tailTipX - tailW, bodyTop, _tailTipX, 0);
                 _bubblePath.AddLine(_tailTipX, 0, _tailTipX + tailW, bodyTop);
                 _bubblePath.AddLine(_tailTipX + tailW, bodyTop, Width - 1 - r, bodyTop);
 
-                // Top-right
                 _bubblePath.AddArc(Width - 1 - d, bodyTop, d, d, 270, 90);
-                // Bottom-right
                 _bubblePath.AddArc(Width - 1 - d, Height - 1 - d, d, d, 0, 90);
-                // Bottom-left
                 _bubblePath.AddArc(0, Height - 1 - d, d, d, 90, 90);
                 _bubblePath.CloseFigure();
             }
@@ -196,24 +272,21 @@ namespace EarthWallpaper
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-            // 1. Slate 900 Background Fill
             using (var brush = new SolidBrush(Color.FromArgb(15, 23, 42)))
             {
                 g.FillPath(brush, _bubblePath);
             }
 
-            // 2. Cyan Glow Border
             using (var pen = new Pen(Color.FromArgb(56, 189, 248), 1.5f))
             {
                 g.DrawPath(pen, _bubblePath);
             }
 
-            // 3. Typography
             int contentTop = _tailOnBottom ? 10 : 18;
             int contentLeft = 14;
             int contentWidth = Width - 28;
 
-            // Row 1: Icon + Title
+            // Row 1: Title & Icon
             using (var fontEmoji = new Font("Segoe UI Emoji", 9f, FontStyle.Regular))
             using (var fontTitle = new Font("Segoe UI", 9f, FontStyle.Bold))
             using (var brushTitle = new SolidBrush(Color.FromArgb(56, 189, 248)))
@@ -222,7 +295,7 @@ namespace EarthWallpaper
                 g.DrawString(_titleText, fontTitle, brushTitle, new PointF(contentLeft + 20, contentTop));
             }
 
-            // Row 2: Location Display Name (Auto-Ellipsis)
+            // Row 2: Location Name
             using (var fontLoc = new Font("Segoe UI", 9.5f, FontStyle.Bold))
             using (var brushLoc = new SolidBrush(Color.FromArgb(248, 250, 252)))
             {
@@ -231,20 +304,7 @@ namespace EarthWallpaper
                     Trimming = StringTrimming.EllipsisCharacter,
                     FormatFlags = StringFormatFlags.NoWrap
                 };
-                g.DrawString(_locationText, fontLoc, brushLoc, new RectangleF(contentLeft, contentTop + 20, contentWidth, 20), sf);
-            }
-
-            // Row 3: Bookmark Status & Action Prompt
-            using (var fontEmoji = new Font("Segoe UI Emoji", 8f, FontStyle.Regular))
-            using (var fontStatus = new Font("Segoe UI", 8.5f, FontStyle.Bold))
-            using (var brushStatus = new SolidBrush(_isBookmarked ? Color.FromArgb(250, 204, 21) : Color.FromArgb(148, 163, 184)))
-            using (var fontHint = new Font("Segoe UI", 8f, FontStyle.Regular))
-            using (var brushHint = new SolidBrush(Color.FromArgb(100, 116, 139)))
-            {
-                string star = _isBookmarked ? "★ " : "☆ ";
-                g.DrawString(star + _statusText, fontStatus, brushStatus, new PointF(contentLeft, contentTop + 42));
-                var sz = g.MeasureString(star + _statusText, fontStatus);
-                g.DrawString(" (点击桌宠研判/收藏)", fontHint, brushHint, new PointF(contentLeft + sz.Width + 4, contentTop + 43));
+                g.DrawString(_locationText, fontLoc, brushLoc, new RectangleF(contentLeft, contentTop + 19, contentWidth, 20), sf);
             }
         }
 

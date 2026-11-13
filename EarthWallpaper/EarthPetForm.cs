@@ -144,7 +144,7 @@ namespace EarthWallpaper
             // 2. Never floats above user application windows (Chrome, VS Code, etc.)
             DesktopWorker.AttachPetToDesktop(Handle);
 
-            _bubbleForm = new PetBubbleForm(this);
+            _bubbleForm = new PetBubbleForm(this, _wallpaperForm);
             _bubbleForm.CreateControl();
         }
 

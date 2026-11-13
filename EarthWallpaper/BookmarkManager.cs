@@ -16,6 +16,7 @@ namespace EarthWallpaper
         public string ImageUrl { get; set; } = string.Empty;
         public DateTime SavedAt { get; set; } = DateTime.Now;
         public string Notes { get; set; } = string.Empty;
+        public string Category { get; set; } = "默认";
 
         public string GetDisplayName()
         {
@@ -56,6 +57,11 @@ namespace EarthWallpaper
 
         public static bool ToggleBookmark(LocationInfo loc, out bool nowBookmarked)
         {
+            return ToggleBookmark(loc, "默认", out nowBookmarked);
+        }
+
+        public static bool ToggleBookmark(LocationInfo loc, string category, out bool nowBookmarked)
+        {
             EnsureLoaded();
             if (IsBookmarked(loc.Lat, loc.Lng))
             {
@@ -77,6 +83,7 @@ namespace EarthWallpaper
                     Lng = loc.Lng,
                     MapUrl = loc.MapUrl,
                     ImageUrl = loc.ImageUrl,
+                    Category = string.IsNullOrWhiteSpace(category) ? "默认" : category.Trim(),
                     SavedAt = DateTime.Now
                 });
                 Save();
@@ -84,6 +91,32 @@ namespace EarthWallpaper
                 OnBookmarksChanged?.Invoke();
                 return true;
             }
+        }
+
+        public static void UpdateCategory(string id, string newCategory)
+        {
+            EnsureLoaded();
+            var item = _items.Find(b => b.Id == id);
+            if (item != null)
+            {
+                item.Category = string.IsNullOrWhiteSpace(newCategory) ? "默认" : newCategory.Trim();
+                Save();
+                OnBookmarksChanged?.Invoke();
+            }
+        }
+
+        public static List<string> GetAllCategories()
+        {
+            EnsureLoaded();
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "全部", "默认", "城市", "荒地", "河流", "好看" };
+            foreach (var b in _items)
+            {
+                if (!string.IsNullOrWhiteSpace(b.Category))
+                {
+                    set.Add(b.Category.Trim());
+                }
+            }
+            return new List<string>(set);
         }
 
         public static bool Remove(string id)
