@@ -70,37 +70,37 @@ namespace EarthWallpaper
         {
             var menu = new ContextMenuStrip();
             
-            var itemIcons = new ToolStripMenuItem("👁 显隐桌面图标", null, (s, e) => DesktopWorker.ToggleDesktopIcons());
-            var itemNext = new ToolStripMenuItem("⏭ 下一张地球壁纸", null, (s, e) => SendWebMessage("next_wallpaper"));
-            var itemPrev = new ToolStripMenuItem("⏮ 上一张地球壁纸", null, (s, e) => SendWebMessage("previous_wallpaper"));
-            var itemBookmarks = new ToolStripMenuItem("⭐ 我的地标收藏夹", null, (s, e) => _petForm?.OpenGeminiHub(true));
-            var itemGemini = new ToolStripMenuItem("✨ Ask Gemini 地貌研判", null, (s, e) => _petForm?.OpenGeminiHub(false));
+            var itemIcons = new ToolStripMenuItem(L10n.MenuToggleIcons, null, (s, e) => DesktopWorker.ToggleDesktopIcons());
+            var itemNext = new ToolStripMenuItem(L10n.MenuNextWallpaper, null, (s, e) => SendWebMessage("next_wallpaper"));
+            var itemPrev = new ToolStripMenuItem(L10n.MenuPrevWallpaper, null, (s, e) => SendWebMessage("previous_wallpaper"));
+            var itemBookmarks = new ToolStripMenuItem(L10n.MenuBookmarks, null, (s, e) => _petForm?.OpenGeminiHub(true));
+            var itemGemini = new ToolStripMenuItem(L10n.MenuAskGemini, null, (s, e) => _petForm?.OpenGeminiHub(false));
             
             ToolStripMenuItem? itemSkin = null;
-            itemSkin = new ToolStripMenuItem($"🎨 切换桌宠外观 ({_petForm?.GetSkinDisplayName() ?? "初版天体"})", null, (s, e) =>
+            itemSkin = new ToolStripMenuItem($"{L10n.MenuSwitchSkin} ({_petForm?.GetSkinDisplayName() ?? "Classic"})", null, (s, e) =>
             {
                 _petForm?.ToggleSkin();
                 if (itemSkin != null && _petForm != null)
                 {
-                    itemSkin.Text = $"🎨 切换桌宠外观 ({_petForm.GetSkinDisplayName()})";
+                    itemSkin.Text = $"{L10n.MenuSwitchSkin} ({_petForm.GetSkinDisplayName()})";
                 }
             });
 
-            var itemDev = new ToolStripMenuItem("🛠️ 开发者模式 (队列监控)", null, (s, e) => _petForm?.OpenGeminiHub(false, true));
-            var itemReload = new ToolStripMenuItem("🔄 重载 / 重启应用 (Reload)", null, (s, e) => RestartApplication());
+            var itemDev = new ToolStripMenuItem(L10n.MenuDevTelemetry, null, (s, e) => _petForm?.OpenGeminiHub(false, true));
+            var itemReload = new ToolStripMenuItem(L10n.MenuReload, null, (s, e) => RestartApplication());
             
-            var itemStartup = new ToolStripMenuItem { Text = "🚀 开机自启" };
+            var itemStartup = new ToolStripMenuItem();
             itemStartup.Checked = IsStartupEnabled();
-            itemStartup.Text = itemStartup.Checked ? "🚀 开机自启 (已开启)" : "🚀 开机自启 (未开启)";
+            itemStartup.Text = itemStartup.Checked ? L10n.MenuStartupEnabled : L10n.MenuStartupDisabled;
             itemStartup.Click += (s, e) =>
             {
                 bool newState = !itemStartup.Checked;
                 SetStartupEnabled(newState);
                 itemStartup.Checked = newState;
-                itemStartup.Text = newState ? "🚀 开机自启 (已开启)" : "🚀 开机自启 (未开启)";
+                itemStartup.Text = newState ? L10n.MenuStartupEnabled : L10n.MenuStartupDisabled;
             };
 
-            var itemExit = new ToolStripMenuItem("🚪 退出 Earth Tabliss (恢复原壁纸)", null, (s, e) => ExitApplication());
+            var itemExit = new ToolStripMenuItem(L10n.MenuExit, null, (s, e) => ExitApplication());
 
             menu.Items.AddRange(new ToolStripItem[] {
                 itemIcons,

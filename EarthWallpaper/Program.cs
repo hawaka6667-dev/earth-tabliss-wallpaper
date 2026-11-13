@@ -167,7 +167,7 @@ namespace EarthWallpaper
             if (!createdNew)
             {
                 Log("Another instance is already running.");
-                MessageBox.Show("Earth Tabliss 已经在运行中！\n请查看桌面最底层或屏幕右下角托盘图标。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(L10n.AlreadyRunning, L10n.Notice, MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
