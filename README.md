@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-blue?style=flat-square&logo=windows" alt="Platform" />
   <img src="https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet" alt=".NET" />
   <img src="https://img.shields.io/badge/CPU%20Idle-0%20FPS%20%7C%20~0.0%25-22c55e?style=flat-square" alt="Efficiency" />
-  <img src="https://img.shields.io/badge/AI-Gemini%203.8%20Flash-4285F4?style=flat-square&logo=google" alt="AI" />
+  <img src="https://img.shields.io/badge/AI-Gemini%204%20Hydrogen-4285F4?style=flat-square&logo=google" alt="AI" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License" />
 </p>
 
@@ -19,7 +19,7 @@
 * **1,500+ Satellite Views**: Curated landscapes from Google Earth View across deserts, glaciers, reefs, and salt flats.
 * **0 FPS Zero-Overhead Engine**: Halts redraw loops once the 0.6s wallpaper transition finishes. Idles at **~0.0% CPU**.
 * **Clean System Teardown**: Hooks non-destructively to Windows `WorkerW`. Automatically backs up and restores your original wallpaper on exit.
-* **Ask Gemini**: Instant geological and satellite reasoning powered by **Gemini 3.8 Flash** (`gemini-3.8-flash` / Gemini 4 Hydrogen compatible).
+* **Ask Gemini**: Instant geological and satellite reasoning powered by **Gemini 4 Hydrogen** (`gemini-4-hydrogen`).
 * **Visual Bookmarks Hub**: Save and organize your favorite coordinates with instant cached satellite thumbnails.
 
 <p align="center">
