@@ -403,15 +403,21 @@ namespace EarthWallpaper
                 Program.Log($"DesktopWorker: Restoring original wallpaper target: {target}");
                 if (!string.IsNullOrEmpty(target) && File.Exists(target))
                 {
+                    // Call SystemParametersInfoW multiple times if needed to ensure Windows desktop engine refreshes
                     int res = SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, target, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
                     Program.Log($"DesktopWorker: SystemParametersInfo applied result = {res}");
                 }
 
-                // 5. Force Progman / Desktop redraw
+                // 3. Force Progman / WorkerW redraw
                 IntPtr progman = FindWindow("Progman", null);
                 if (progman != IntPtr.Zero)
                 {
                     RedrawWindow(progman, IntPtr.Zero, IntPtr.Zero, 0x0185 /* RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW */);
+                }
+
+                if (WorkerWHandle != IntPtr.Zero)
+                {
+                    RedrawWindow(WorkerWHandle, IntPtr.Zero, IntPtr.Zero, 0x0185);
                 }
             }
             catch (Exception ex)
