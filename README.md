@@ -26,18 +26,10 @@
   <img src="docs/images/wallpaper_gallery_grid.jpg" alt="Wallpaper Gallery" width="100%" />
 </p>
 
-## 🚀 Quick Start
+## 🚀 Download & Run
 
-### Option 1: Download Release (Recommended)
-1. Download **[`EarthTabliss-v0.2.0-win-x64.zip`](https://github.com/hawaka6667-dev/earth-tabliss-wallpaper/releases/latest)** from GitHub Releases.
-2. Unzip and run `EarthWallpaper.exe` (or `start.bat`). Ready to use immediately!
-
-### Option 2: Build from Source
-```bash
-git clone https://github.com/hawaka6667-dev/earth-tabliss-wallpaper.git
-cd earth-tabliss-wallpaper
-dotnet run --project EarthWallpaper/EarthWallpaper.csproj
-```
+1. Download **[EarthTabliss-v0.2.0-win-x64.zip](https://github.com/hawaka6667-dev/earth-tabliss-wallpaper/releases/latest/download/EarthTabliss-v0.2.0-win-x64.zip)** (Portable, No Installation Required).
+2. Unzip anywhere and double-click `EarthWallpaper.exe` (or `start.bat`). Enjoy your new desktop!
 
 ## 📄 License
 [MIT](LICENSE) · Imagery © Google Earth View.
