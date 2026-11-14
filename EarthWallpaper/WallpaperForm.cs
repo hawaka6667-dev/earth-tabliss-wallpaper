@@ -54,6 +54,46 @@ namespace EarthWallpaper
         public WallpaperForm()
         {
             InitializeComponent();
+            StartGracefulExitWatcher();
+        }
+
+        private EventWaitHandle? _exitWatcherEvent;
+        private Thread? _exitWatcherThread;
+
+        private void StartGracefulExitWatcher()
+        {
+            try
+            {
+                _exitWatcherEvent = new EventWaitHandle(false, EventResetMode.AutoReset, "EarthTabliss_GracefulExitEvent", out _);
+                _exitWatcherThread = new Thread(() =>
+                {
+                    try
+                    {
+                        while (!_isExiting)
+                        {
+                            if (_exitWatcherEvent.WaitOne(400))
+                            {
+                                Program.Log("WallpaperForm: Graceful exit signaled from external process.");
+                                if (IsHandleCreated && !IsDisposed)
+                                {
+                                    BeginInvoke(new Action(ExitApplication));
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    catch { }
+                })
+                {
+                    IsBackground = true,
+                    Name = "GracefulExitWatcher"
+                };
+                _exitWatcherThread.Start();
+            }
+            catch (Exception ex)
+            {
+                Program.Log($"StartGracefulExitWatcher error: {ex.Message}");
+            }
         }
 
         private void InitializeComponent()
@@ -563,6 +603,7 @@ namespace EarthWallpaper
                 _trayIcon?.Dispose();
                 _petForm?.Dispose();
                 _webView?.Dispose();
+                _exitWatcherEvent?.Dispose();
             }
             base.Dispose(disposing);
         }

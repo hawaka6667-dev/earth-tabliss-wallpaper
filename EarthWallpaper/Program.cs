@@ -24,6 +24,37 @@ namespace EarthWallpaper
 
         static void Main(string[] args)
         {
+            if (args.Length > 0 && args[0] == "--exit")
+            {
+                try
+                {
+                    if (EventWaitHandle.TryOpenExisting("EarthTabliss_GracefulExitEvent", out var exitHandle))
+                    {
+                        exitHandle.Set();
+                        exitHandle.Dispose();
+                        Log("Main: Graceful exit signaled to running EarthWallpaper instance.");
+                        Console.WriteLine("Sent graceful exit signal to active EarthWallpaper process.");
+                        Thread.Sleep(300);
+                    }
+                    else
+                    {
+                        Console.WriteLine("No active EarthWallpaper instance found to signal.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Exit signal error: {ex.Message}");
+                }
+                return;
+            }
+
+            if (args.Length > 0 && (args[0] == "--restore-desktop" || args[0] == "--repair"))
+            {
+                DesktopWorker.RestoreOriginalWallpaper();
+                Console.WriteLine("Desktop background restored and orphan WorkerW layers cleared.");
+                return;
+            }
+
             if (args.Length > 0 && args[0] == "--render-api-dialog")
             {
                 try
@@ -141,6 +172,9 @@ namespace EarthWallpaper
             }
 
             Log("=== EarthWallpaper Starting (Main Thread) ===");
+
+            // 0. Clean up any orphan WorkerW layers from prior crashes
+            DesktopWorker.CleanupOrphanWorkerWs();
 
             // 1. Immediately back up user's active wallpaper before touching desktop
             DesktopWorker.BackupOriginalWallpaper();

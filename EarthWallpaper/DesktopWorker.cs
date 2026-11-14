@@ -338,6 +338,32 @@ namespace EarthWallpaper
             }
         }
 
+        public static void CleanupOrphanWorkerWs()
+        {
+            try
+            {
+                EnumWindows((hwnd, lParam) =>
+                {
+                    var sb = new System.Text.StringBuilder(256);
+                    GetClassName(hwnd, sb, 256);
+                    if (sb.ToString() == "WorkerW")
+                    {
+                        IntPtr defView = FindWindowEx(hwnd, IntPtr.Zero, "SHELLDLL_DefView", null);
+                        if (defView == IntPtr.Zero)
+                        {
+                            ShowWindow(hwnd, 0 /* SW_HIDE */);
+                            Program.Log($"DesktopWorker: Cleaned up orphan WorkerW layer ({hwnd}).");
+                        }
+                    }
+                    return true;
+                }, IntPtr.Zero);
+            }
+            catch (Exception ex)
+            {
+                Program.Log($"DesktopWorker.CleanupOrphanWorkerWs error: {ex.Message}");
+            }
+        }
+
         public static void RestoreOriginalWallpaper()
         {
             if (IsRestarting)
@@ -369,48 +395,27 @@ namespace EarthWallpaper
                     Program.Log("DesktopWorker: Hid WorkerWHandle on exit.");
                 }
 
-                // 3. Resolve verified original wallpaper path (MUST have an image extension!)
-                string target = "";
-                string? regWall = Registry.GetValue(@"HKEY_CURRENT_USER\Control Panel\Desktop", "Wallpaper", "") as string;
-                if (!string.IsNullOrEmpty(regWall) && File.Exists(regWall) && !regWall.Contains("EarthWallpaper"))
-                {
-                    target = regWall;
-                }
-                else if (File.Exists(BackupFilePath) && new FileInfo(BackupFilePath).Length > 1000)
-                {
-                    target = BackupFilePath;
-                }
-                else
-                {
-                    string transcoded = Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                        @"Microsoft\Windows\Themes\TranscodedWallpaper");
-                    if (File.Exists(transcoded))
-                    {
-                        string safeCopy = Path.Combine(
-                            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                            "EarthWallpaper", "TranscodedWallpaper_safe.png");
-                        File.Copy(transcoded, safeCopy, true);
-                        target = safeCopy;
-                    }
-                }
+                // 3. Clean up ANY orphan WorkerW layers left behind by crashed/aborted instances
+                CleanupOrphanWorkerWs();
 
-                Program.Log($"DesktopWorker: Restoring original wallpaper target: {target}");
-                if (!string.IsNullOrEmpty(target) && File.Exists(target))
-                {
-                    // Call SystemParametersInfoW multiple times if needed to ensure Windows desktop engine refreshes
-                    int res = SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, target, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
-                    Program.Log($"DesktopWorker: SystemParametersInfo applied result = {res}");
-                }
-
-                // 4. Broadcast setting change & force Progman redraw
-                SendMessageTimeout((IntPtr)0xffff /* HWND_BROADCAST */, 0x001A /* WM_SETTINGCHANGE */, (IntPtr)SPI_SETDESKWALLPAPER, IntPtr.Zero, 0x0002, 1000, out _);
-
+                // 4. Force Progman and ShellView full dual redraw to reveal underlying wallpaper
                 IntPtr progman = FindWindow("Progman", null);
                 if (progman != IntPtr.Zero)
                 {
                     RedrawWindow(progman, IntPtr.Zero, IntPtr.Zero, 0x0185 /* RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW */);
                 }
+
+                if (shellView != IntPtr.Zero)
+                {
+                    RedrawWindow(shellView, IntPtr.Zero, IntPtr.Zero, 0x0185 /* RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW */);
+                }
+
+                // 5. Broadcast setting change WITHOUT modifying user registry (NO SPIF_UPDATEINIFILE)
+                SendMessageTimeout((IntPtr)0xffff /* HWND_BROADCAST */, 0x001A /* WM_SETTINGCHANGE */, (IntPtr)SPI_SETDESKWALLPAPER, IntPtr.Zero, 0x0002, 1000, out _);
+
+                // Refresh Windows desktop wallpaper engine safely (reads registry without overriding)
+                SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, "", SPIF_SENDCHANGE);
+                Program.Log("DesktopWorker: Broadcasted wallpaper refresh to Windows Explorer.");
             }
             catch (Exception ex)
             {
