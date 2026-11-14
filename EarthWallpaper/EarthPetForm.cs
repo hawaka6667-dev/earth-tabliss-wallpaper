@@ -43,14 +43,10 @@ namespace EarthWallpaper
         {
             try
             {
-                if (File.Exists(SkinConfigFile))
+                if (Enum.TryParse<PetSkin>(AppConfig.Instance.PetSkin, out var skin))
                 {
-                    string text = File.ReadAllText(SkinConfigFile).Trim();
-                    if (Enum.TryParse<PetSkin>(text, out var skin))
-                    {
-                        CurrentSkin = skin;
-                        Program.Log($"EarthPetForm: Loaded skin {CurrentSkin}");
-                    }
+                    CurrentSkin = skin;
+                    Program.Log($"EarthPetForm: Loaded skin {CurrentSkin} from AppConfig");
                 }
             }
             catch (Exception ex)
@@ -64,20 +60,19 @@ namespace EarthWallpaper
             CurrentSkin = CurrentSkin == PetSkin.ClassicOrb ? PetSkin.OrbProbe : PetSkin.ClassicOrb;
             try
             {
-                string dir = Path.GetDirectoryName(SkinConfigFile)!;
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                File.WriteAllText(SkinConfigFile, CurrentSkin.ToString());
+                AppConfig.Instance.PetSkin = CurrentSkin.ToString();
+                AppConfig.Save();
             }
             catch { }
 
             Invalidate();
             string name = GetSkinDisplayName();
-            _bubbleForm?.ShowNotificationBubble("✨ 外观切换完成", name);
+            _bubbleForm?.ShowNotificationBubble(L10n.SkinSwitchedTitle, name);
         }
 
         public string GetSkinDisplayName()
         {
-            return CurrentSkin == PetSkin.ClassicOrb ? "初版天体核心" : "O.R.B. 测绘机";
+            return CurrentSkin == PetSkin.ClassicOrb ? L10n.SkinClassic : L10n.SkinProbe;
         }
 
         public void OpenHub() => OpenGeminiHub(false);

@@ -27,7 +27,8 @@
     isHudVisible: true,
     currentLocation: OFFLINE_FALLBACK,
     shuffledIndices: [],
-    shufflePtr: 0
+    shufflePtr: 0,
+    lang: 'zh'
   };
 
   const el = {
@@ -54,27 +55,43 @@
   };
 
   // 1. Clock Engine (Lightweight, 0% CPU)
+  const weekdaysZh = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+  const monthsEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const weekdaysEn = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
   function updateClock() {
     const now = new Date();
     el.hours.textContent = String(now.getHours()).padStart(2, '0');
     el.minutes.textContent = String(now.getMinutes()).padStart(2, '0');
 
-    const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
     const year = now.getFullYear();
-    const month = now.getMonth() + 1;
+    const month = now.getMonth();
     const day = now.getDate();
-    const weekday = weekdays[now.getDay()];
-    el.date.textContent = `${year}年${month}月${day}日 ${weekday}`;
+    const weekdayIdx = now.getDay();
 
-    const h = now.getHours();
-    let text = '漫游蔚蓝星球';
-    if (h >= 5 && h < 9) text = '清晨好，探索者';
-    else if (h >= 9 && h < 12) text = '上午好，俯瞰大地脉络';
-    else if (h >= 12 && h < 14) text = '午间好，静观行星流转';
-    else if (h >= 14 && h < 18) text = '下午好，发现未知地貌';
-    else if (h >= 18 && h < 23) text = '夜晚好，星河与地表辉映';
-    else text = '夜深了，地球仍在静默自转';
-    el.greeting.textContent = text;
+    if (state.lang === 'en') {
+      el.date.textContent = `${weekdaysEn[weekdayIdx]}, ${monthsEn[month]} ${day}, ${year}`;
+      const h = now.getHours();
+      let text = 'Wandering the Blue Planet';
+      if (h >= 5 && h < 9) text = 'Good morning, Explorer';
+      else if (h >= 9 && h < 12) text = 'Good morning, surveying the Earth';
+      else if (h >= 12 && h < 14) text = 'Good afternoon, planetary stillness';
+      else if (h >= 14 && h < 18) text = 'Good afternoon, discovering landscapes';
+      else if (h >= 18 && h < 23) text = 'Good evening, starlight over continents';
+      else text = 'Late night, Earth spins in silence';
+      el.greeting.textContent = text;
+    } else {
+      el.date.textContent = `${year}年${month + 1}月${day}日 ${weekdaysZh[weekdayIdx]}`;
+      const h = now.getHours();
+      let text = '漫游蔚蓝星球';
+      if (h >= 5 && h < 9) text = '清晨好，探索者';
+      else if (h >= 9 && h < 12) text = '上午好，俯瞰大地脉络';
+      else if (h >= 12 && h < 14) text = '午间好，静观行星流转';
+      else if (h >= 14 && h < 18) text = '下午好，发现未知地貌';
+      else if (h >= 18 && h < 23) text = '夜晚好，星河与地表辉映';
+      else text = '夜深了，地球仍在静默自转';
+      el.greeting.textContent = text;
+    }
   }
 
   setInterval(updateClock, 1000);
@@ -407,6 +424,9 @@
         el.resGeomorphology.textContent = '分析请求受阻';
         el.resFormation.textContent = msg.data || '未能连接到推理引擎';
         el.resResearchNotes.textContent = '请检查网络连接或 API 配置';
+      } else if (msg.type === 'set_language') {
+        state.lang = msg.lang || 'zh';
+        updateClock();
       } else if (msg.type === 'set_custom_wallpaper') {
         const item = msg.data;
         if (!item || !item.image) return;

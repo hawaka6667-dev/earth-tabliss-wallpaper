@@ -9,8 +9,14 @@ namespace EarthWallpaper
     public class ApiKeySettingsForm : Form
     {
         private TextBox _txtKey = null!;
+        private Label _lblTitle = null!;
+        private Label _lblInfo = null!;
+        private Button _btnGetLink = null!;
+        private Label _lblInputTitle = null!;
         private Label _lblStatus = null!;
         private Button _btnTest = null!;
+        private Button _btnClear = null!;
+        private Button _btnCancel = null!;
         private Button _btnSave = null!;
         private Button _btnToggleMask = null!;
         private Point _dragStart;
@@ -18,6 +24,7 @@ namespace EarthWallpaper
         public ApiKeySettingsForm()
         {
             InitializeComponent();
+            L10n.OnLanguageChanged += RefreshLocalizedUi;
         }
 
         private void InitializeComponent()
@@ -26,7 +33,7 @@ namespace EarthWallpaper
 
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.CenterParent;
-            TopMost = true;
+            TopMost = false;
             ShowInTaskbar = false;
             DoubleBuffered = true;
             ClientSize = new Size(680, 350);
@@ -43,9 +50,9 @@ namespace EarthWallpaper
                 BackColor = Color.FromArgb(30, 41, 59) // Slate 800
             };
 
-            var lblTitle = new Label
+            _lblTitle = new Label
             {
-                Text = "🔑 配置 Google Gemini API 密钥",
+                Text = L10n.ApiTitle,
                 Font = new Font("Microsoft YaHei UI", 10.5f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(56, 189, 248), // Cyan 400
                 Location = new Point(20, 12),
@@ -75,8 +82,8 @@ namespace EarthWallpaper
                     Location = new Point(Location.X + (e.X - _dragStart.X), Location.Y + (e.Y - _dragStart.Y));
                 }
             };
-            lblTitle.MouseDown += (s, e) => { if (e.Button == MouseButtons.Left) _dragStart = e.Location; };
-            lblTitle.MouseMove += (s, e) =>
+            _lblTitle.MouseDown += (s, e) => { if (e.Button == MouseButtons.Left) _dragStart = e.Location; };
+            _lblTitle.MouseMove += (s, e) =>
             {
                 if (e.Button == MouseButtons.Left)
                 {
@@ -84,37 +91,37 @@ namespace EarthWallpaper
                 }
             };
 
-            pnlTitle.Controls.Add(lblTitle);
+            pnlTitle.Controls.Add(_lblTitle);
             pnlTitle.Controls.Add(btnClose);
             Controls.Add(pnlTitle);
 
             // ==========================================
             // 2. Info Line & AI Studio Portal Link
             // ==========================================
-            var lblInfo = new Label
+            _lblInfo = new Label
             {
-                Text = "配置个人 API Key 可解锁实时地学智能问答（留空使用内置离线地质引擎）。",
+                Text = L10n.ApiInfo,
                 Font = new Font("Microsoft YaHei UI", 9f),
                 ForeColor = Color.FromArgb(148, 163, 184), // Slate 400
                 Location = new Point(24, 60),
                 Size = new Size(630, 24)
             };
-            Controls.Add(lblInfo);
+            Controls.Add(_lblInfo);
 
-            var btnGetLink = new Button
+            _btnGetLink = new Button
             {
-                Text = "🌐 免费获取 Gemini API 密钥 (aistudio.google.com) ↗",
+                Text = L10n.ApiGetLink,
                 Font = new Font("Microsoft YaHei UI", 9f, FontStyle.Underline),
                 ForeColor = Color.FromArgb(56, 189, 248),
                 BackColor = Color.Transparent,
                 FlatStyle = FlatStyle.Flat,
                 Location = new Point(24, 86),
-                Size = new Size(460, 26),
+                Size = new Size(520, 26),
                 Cursor = Cursors.Hand,
                 TextAlign = ContentAlignment.MiddleLeft
             };
-            btnGetLink.FlatAppearance.BorderSize = 0;
-            btnGetLink.Click += (s, e) =>
+            _btnGetLink.FlatAppearance.BorderSize = 0;
+            _btnGetLink.Click += (s, e) =>
             {
                 try
                 {
@@ -125,20 +132,20 @@ namespace EarthWallpaper
                     Program.Log($"Failed to open AI Studio link: {ex.Message}");
                 }
             };
-            Controls.Add(btnGetLink);
+            Controls.Add(_btnGetLink);
 
             // ==========================================
             // 3. API Key Input Wrapper
             // ==========================================
-            var lblInputTitle = new Label
+            _lblInputTitle = new Label
             {
-                Text = "API 密钥 (API Key)：",
+                Text = L10n.ApiKeyLabel,
                 Font = new Font("Microsoft YaHei UI", 9.2f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(226, 232, 240),
                 Location = new Point(24, 122),
                 AutoSize = true
             };
-            Controls.Add(lblInputTitle);
+            Controls.Add(_lblInputTitle);
 
             var pnlInputBox = new Panel
             {
@@ -223,7 +230,7 @@ namespace EarthWallpaper
             // ==========================================
             _btnTest = new Button
             {
-                Text = "⚡ 验证有效性",
+                Text = L10n.ApiBtnTest,
                 Font = new Font("Microsoft YaHei UI", 9f, FontStyle.Regular),
                 ForeColor = Color.FromArgb(56, 189, 248),
                 BackColor = Color.FromArgb(30, 41, 59),
@@ -236,9 +243,9 @@ namespace EarthWallpaper
             _btnTest.Click += async (s, e) => await RunValidationAsync();
             Controls.Add(_btnTest);
 
-            var btnClear = new Button
+            _btnClear = new Button
             {
-                Text = "🗑️ 清除密钥",
+                Text = L10n.ApiBtnClear,
                 Font = new Font("Microsoft YaHei UI", 9f, FontStyle.Regular),
                 ForeColor = Color.FromArgb(248, 113, 113),
                 BackColor = Color.Transparent,
@@ -247,18 +254,18 @@ namespace EarthWallpaper
                 Size = new Size(130, 38),
                 Cursor = Cursors.Hand
             };
-            btnClear.FlatAppearance.BorderSize = 0;
-            btnClear.Click += (s, e) =>
+            _btnClear.FlatAppearance.BorderSize = 0;
+            _btnClear.Click += (s, e) =>
             {
                 _txtKey.Text = string.Empty;
-                _lblStatus.Text = "⚪ 密钥已清空。点击【保存设置】即可还原为内置离线引擎。";
+                _lblStatus.Text = L10n.ApiStatusCleared;
                 _lblStatus.ForeColor = Color.FromArgb(250, 204, 21);
             };
-            Controls.Add(btnClear);
+            Controls.Add(_btnClear);
 
-            var btnCancel = new Button
+            _btnCancel = new Button
             {
-                Text = "取消",
+                Text = L10n.ApiBtnCancel,
                 DialogResult = DialogResult.Cancel,
                 Font = new Font("Microsoft YaHei UI", 9f, FontStyle.Regular),
                 ForeColor = Color.FromArgb(148, 163, 184),
@@ -268,13 +275,13 @@ namespace EarthWallpaper
                 Size = new Size(95, 38),
                 Cursor = Cursors.Hand
             };
-            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
-            btnCancel.Click += (s, e) => Close();
-            Controls.Add(btnCancel);
+            _btnCancel.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
+            _btnCancel.Click += (s, e) => Close();
+            Controls.Add(_btnCancel);
 
             _btnSave = new Button
             {
-                Text = "💾 保存设置",
+                Text = L10n.ApiBtnSave,
                 DialogResult = DialogResult.OK,
                 Font = new Font("Microsoft YaHei UI", 9.2f, FontStyle.Bold),
                 ForeColor = Color.White,
@@ -293,7 +300,7 @@ namespace EarthWallpaper
             Controls.Add(_btnSave);
 
             AcceptButton = _btnSave;
-            CancelButton = btnCancel;
+            CancelButton = _btnCancel;
             KeyPreview = true;
             KeyDown += (s, e) =>
             {
@@ -303,16 +310,36 @@ namespace EarthWallpaper
             ResumeLayout(false);
         }
 
+        protected override void OnLoad(EventArgs e)
+        {
+            base.OnLoad(e);
+            SafeGdi.ApplyRoundedRegion(this, 16);
+        }
+
+        private void RefreshLocalizedUi()
+        {
+            if (IsDisposed) return;
+            _lblTitle.Text = L10n.ApiTitle;
+            _lblInfo.Text = L10n.ApiInfo;
+            _btnGetLink.Text = L10n.ApiGetLink;
+            _lblInputTitle.Text = L10n.ApiKeyLabel;
+            _btnTest.Text = L10n.ApiBtnTest;
+            _btnClear.Text = L10n.ApiBtnClear;
+            _btnCancel.Text = L10n.ApiBtnCancel;
+            _btnSave.Text = L10n.ApiBtnSave;
+            UpdateStatusInitial(_txtKey.Text.Trim());
+        }
+
         private void UpdateStatusInitial(string key)
         {
             if (!string.IsNullOrEmpty(key))
             {
-                _lblStatus.Text = "🟢 已配置 API Key（可点击下方【⚡ 验证有效性】测试连通状态）";
+                _lblStatus.Text = L10n.ApiStatusConfigured;
                 _lblStatus.ForeColor = Color.FromArgb(52, 211, 153); // Emerald 400
             }
             else
             {
-                _lblStatus.Text = "⚪ 当前未配置 API Key（自动使用内置高质量离线地质引擎）";
+                _lblStatus.Text = L10n.ApiStatusEmpty;
                 _lblStatus.ForeColor = Color.FromArgb(148, 163, 184); // Slate 400
             }
         }
@@ -322,14 +349,16 @@ namespace EarthWallpaper
             string key = _txtKey.Text.Trim();
             if (string.IsNullOrEmpty(key))
             {
-                _lblStatus.Text = "⚠️ 请先在输入框中填入待验证的 API Key。";
+                _lblStatus.Text = L10n.IsChinese 
+                    ? "⚠️ 请先在输入框中填入待验证的 API Key。" 
+                    : "⚠️ Please enter an API key to verify.";
                 _lblStatus.ForeColor = Color.FromArgb(250, 204, 21);
                 return;
             }
 
             _btnTest.Enabled = false;
             _btnSave.Enabled = false;
-            _lblStatus.Text = "⏳ 正在连接 Google AI Studio 验证 API 密钥有效性，请稍候...";
+            _lblStatus.Text = L10n.ApiStatusTesting;
             _lblStatus.ForeColor = Color.FromArgb(56, 189, 248);
 
             var (success, message) = await GeminiService.VerifyApiKeyAsync(key);
@@ -347,6 +376,15 @@ namespace EarthWallpaper
             using var pen = new Pen(Color.FromArgb(56, 189, 248), 1.5f);
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             e.Graphics.DrawRectangle(pen, 0, 0, ClientSize.Width - 1, ClientSize.Height - 1);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                L10n.OnLanguageChanged -= RefreshLocalizedUi;
+            }
+            base.Dispose(disposing);
         }
     }
 }

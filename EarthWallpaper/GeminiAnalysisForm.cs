@@ -9,9 +9,6 @@ namespace EarthWallpaper
 {
     public class GeminiAnalysisForm : Form
     {
-        [DllImport("gdi32.dll")]
-        private static extern IntPtr CreateRoundRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect, int nWidthEllipse, int nHeightEllipse);
-
         private readonly LocationInfo _location;
 
         public GeminiAnalysisForm(LocationInfo location)
@@ -224,7 +221,7 @@ namespace EarthWallpaper
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
-            Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, Width, Height, 16, 16));
+            SafeGdi.ApplyRoundedRegion(this, 16);
         }
 
         protected override void OnPaint(PaintEventArgs e)

@@ -12,65 +12,21 @@ namespace EarthWallpaper
     public static class GeminiService
     {
         private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(25) };
-        private static readonly string ConfigPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "EarthWallpaper",
-            "config.json"
-        );
-
-        private static string _apiKey = string.Empty;
-        private static bool _configLoaded = false;
-
         public static string GetApiKey()
         {
-            EnsureConfigLoaded();
-            if (!string.IsNullOrEmpty(_apiKey)) return _apiKey;
+            if (!string.IsNullOrEmpty(AppConfig.Instance.ApiKey)) return AppConfig.Instance.ApiKey;
             return Environment.GetEnvironmentVariable("GEMINI_API_KEY") ?? string.Empty;
         }
 
         public static void SetApiKey(string key)
         {
-            _apiKey = key.Trim();
-            SaveConfig();
+            AppConfig.Instance.ApiKey = key.Trim();
+            AppConfig.Save();
         }
 
         public static bool HasApiKey()
         {
             return !string.IsNullOrEmpty(GetApiKey());
-        }
-
-        private static void EnsureConfigLoaded()
-        {
-            if (_configLoaded) return;
-            try
-            {
-                if (File.Exists(ConfigPath))
-                {
-                    string json = File.ReadAllText(ConfigPath);
-                    using var doc = JsonDocument.Parse(json);
-                    if (doc.RootElement.TryGetProperty("apiKey", out var keyEl))
-                    {
-                        _apiKey = keyEl.GetString() ?? string.Empty;
-                    }
-                }
-            }
-            catch { }
-            _configLoaded = true;
-        }
-
-        private static void SaveConfig()
-        {
-            try
-            {
-                string dir = Path.GetDirectoryName(ConfigPath)!;
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                string json = JsonSerializer.Serialize(new { apiKey = _apiKey }, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(ConfigPath, json);
-            }
-            catch (Exception ex)
-            {
-                Program.Log($"GeminiService.SaveConfig error: {ex.Message}");
-            }
         }
 
         public static async Task<string> AskQuestionAsync(LocationInfo location, string userQuestion, List<(string role, string text)> history)

@@ -9,9 +9,6 @@ namespace EarthWallpaper
 {
     public class FloatingBarForm : Form
     {
-        [DllImport("gdi32.dll")]
-        private static extern IntPtr CreateRoundRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect, int nWidthEllipse, int nHeightEllipse);
-
         private readonly WallpaperForm _wallpaperForm;
         private Label? _lblDragGrip;
         private Button? _btnIcons;
@@ -93,7 +90,7 @@ namespace EarthWallpaper
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
-            Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, Width, Height, 16, 16));
+            SafeGdi.ApplyRoundedRegion(this, 16);
         }
 
         private Button CreateButton(string text, int x, int y, int width, Color textColor, EventHandler onClick)

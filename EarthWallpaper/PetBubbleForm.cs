@@ -56,21 +56,21 @@ namespace EarthWallpaper
             };
 
             // Quick action buttons
-            _btnPrev = CreateBubbleButton("⏮ 上一张", Color.FromArgb(203, 213, 225), (s, e) =>
+            _btnPrev = CreateBubbleButton(L10n.BubbleBtnPrev, Color.FromArgb(203, 213, 225), (s, e) =>
             {
                 _dismissTimer.Stop();
                 _dismissTimer.Start();
                 _wallpaperForm.SendWebMessage("previous_wallpaper");
             });
 
-            _btnNext = CreateBubbleButton("⏭ 下一张", Color.FromArgb(203, 213, 225), (s, e) =>
+            _btnNext = CreateBubbleButton(L10n.BubbleBtnNext, Color.FromArgb(203, 213, 225), (s, e) =>
             {
                 _dismissTimer.Stop();
                 _dismissTimer.Start();
                 _wallpaperForm.SendWebMessage("next_wallpaper");
             });
 
-            _btnBookmark = CreateBubbleButton("⭐ 收藏", Color.FromArgb(250, 204, 21), (s, e) =>
+            _btnBookmark = CreateBubbleButton(L10n.BubbleBtnBookmark, Color.FromArgb(250, 204, 21), (s, e) =>
             {
                 _dismissTimer.Stop();
                 _dismissTimer.Start();
@@ -82,7 +82,7 @@ namespace EarthWallpaper
                 }
             });
 
-            _btnExplore = CreateBubbleButton("研判/详情", Color.FromArgb(56, 189, 248), (s, e) =>
+            _btnExplore = CreateBubbleButton(L10n.BubbleBtnExplore, Color.FromArgb(56, 189, 248), (s, e) =>
             {
                 _dismissTimer.Stop();
                 Hide();
@@ -95,6 +95,21 @@ namespace EarthWallpaper
             Controls.Add(_btnExplore);
 
             LayoutButtons();
+            L10n.OnLanguageChanged += RefreshLocalizedUi;
+        }
+
+        private void RefreshLocalizedUi()
+        {
+            if (IsDisposed) return;
+            _btnPrev.Text = L10n.BubbleBtnPrev;
+            _btnNext.Text = L10n.BubbleBtnNext;
+            _btnBookmark.Text = _isBookmarked ? L10n.BubbleBtnBookmarkSaved : L10n.BubbleBtnBookmark;
+            _btnExplore.Text = L10n.BubbleBtnExplore;
+            if (_titleText == "漫游至新地标" || _titleText == "Arrived at New Landmark")
+            {
+                _titleText = L10n.BubbleNewLandmark;
+            }
+            Invalidate();
         }
 
         private Button CreateBubbleButton(string text, Color foreColor, EventHandler onClick)
@@ -255,7 +270,9 @@ namespace EarthWallpaper
                 _bubblePath.CloseFigure();
             }
 
+            var oldRgn = Region;
             Region = new Region(_bubblePath);
+            oldRgn?.Dispose();
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -307,6 +324,7 @@ namespace EarthWallpaper
         {
             if (disposing)
             {
+                L10n.OnLanguageChanged -= RefreshLocalizedUi;
                 _dismissTimer.Dispose();
                 _bubblePath?.Dispose();
             }

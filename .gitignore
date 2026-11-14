@@ -15,3 +15,9 @@ WebView2Data/
 Thumbs.db
 .DS_Store
 original_wallpaper*.png
+
+# Publish and packaging outputs
+publish_framework/
+*.zip
+*_verified.png
+hub_bookmarks_zh.png

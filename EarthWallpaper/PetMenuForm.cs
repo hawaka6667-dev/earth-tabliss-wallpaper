@@ -2,22 +2,28 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace EarthWallpaper
 {
     public class PetMenuForm : Form
     {
-        [DllImport("gdi32.dll")]
-        private static extern IntPtr CreateRoundRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect, int nWidthEllipse, int nHeightEllipse);
-
         private readonly WallpaperForm _wallpaperForm;
         private readonly EarthPetForm _petForm;
-        private Button? _btnBookmark;
-        private Button? _btnIcons;
-        private Button? _btnSkin;
+
+        private Label? _lblTitle;
         private Label? _lblLoc;
+        private Button? _btnBookmark;
+        private Button? _btnBookmarks;
+        private Button? _btnGemini;
+        private Button? _btnSkin;
+        private Button? _btnLang;
+        private Button? _btnNext;
+        private Button? _btnIcons;
+        private Button? _btnMap;
+        private Button? _btnDev;
+        private Button? _btnExit;
+
         private bool _iconsVisible = true;
 
         public PetMenuForm(WallpaperForm wallpaperForm, EarthPetForm petForm)
@@ -25,6 +31,7 @@ namespace EarthWallpaper
             _wallpaperForm = wallpaperForm;
             _petForm = petForm;
             InitializeComponent();
+            L10n.OnLanguageChanged += RefreshLocalizedUi;
         }
 
         private void InitializeComponent()
@@ -36,7 +43,7 @@ namespace EarthWallpaper
             StartPosition = FormStartPosition.Manual;
             TopMost = true;
             DoubleBuffered = true;
-            Size = new Size(290, 395);
+            Size = new Size(296, 440);
             BackColor = Color.FromArgb(15, 23, 42); // Slate 900
             ForeColor = Color.FromArgb(241, 245, 249);
 
@@ -48,9 +55,9 @@ namespace EarthWallpaper
                 BackColor = Color.FromArgb(30, 41, 59)
             };
 
-            var lblTitle = new Label
+            _lblTitle = new Label
             {
-                Text = "🌍 小地球桌宠 · 控制中枢",
+                Text = L10n.PetMenuTitle,
                 Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(56, 189, 248),
                 Location = new Point(12, 10),
@@ -71,18 +78,18 @@ namespace EarthWallpaper
             btnClose.FlatAppearance.BorderSize = 0;
             btnClose.Click += (s, e) => Hide();
 
-            pnlHeader.Controls.Add(lblTitle);
+            pnlHeader.Controls.Add(_lblTitle);
             pnlHeader.Controls.Add(btnClose);
             Controls.Add(pnlHeader);
 
             // 2. Location Badge
             _lblLoc = new Label
             {
-                Text = "📍 当前漫游: 澳大利亚 · 托雷斯海峡",
-                Font = new Font("Segoe UI", 9f, FontStyle.Regular),
+                Text = $"{L10n.PetLocPrefix}...",
+                Font = new Font("Segoe UI", 8.8f, FontStyle.Regular),
                 ForeColor = Color.FromArgb(203, 213, 225),
                 Location = new Point(12, 46),
-                Size = new Size(266, 22),
+                Size = new Size(272, 22),
                 AutoEllipsis = true
             };
             Controls.Add(_lblLoc);
@@ -93,11 +100,11 @@ namespace EarthWallpaper
             const int btnSpacing = 5;
 
             // Bookmark Button
-            _btnBookmark = CreateMenuButton("⭐ 收藏当前地标", 12, btnY, Color.FromArgb(250, 204, 21), OnToggleBookmark);
+            _btnBookmark = CreateMenuButton(L10n.PetBtnBookmarkAdd, 12, btnY, Color.FromArgb(250, 204, 21), OnToggleBookmark);
             btnY += btnHeight + btnSpacing;
 
             // View Bookmarks
-            var btnViewBookmarks = CreateMenuButton("📂 查看我的收藏夹", 12, btnY, Color.FromArgb(241, 245, 249), (s, e) =>
+            _btnBookmarks = CreateMenuButton(L10n.PetBtnBookmarks, 12, btnY, Color.FromArgb(241, 245, 249), (s, e) =>
             {
                 Hide();
                 _petForm.OpenGeminiHub(true);
@@ -105,7 +112,7 @@ namespace EarthWallpaper
             btnY += btnHeight + btnSpacing;
 
             // Ask Gemini Hub
-            var btnGemini = CreateMenuButton("💬 Ask Gemini 智能研判", 12, btnY, Color.FromArgb(165, 180, 252), (s, e) =>
+            _btnGemini = CreateMenuButton(L10n.PetBtnAskGemini, 12, btnY, Color.FromArgb(165, 180, 252), (s, e) =>
             {
                 Hide();
                 _petForm.OpenGeminiHub(false);
@@ -113,15 +120,22 @@ namespace EarthWallpaper
             btnY += btnHeight + btnSpacing;
 
             // Dual Skin Toggle (Classic Orb / O.R.B. Probe)
-            _btnSkin = CreateMenuButton($"🎨 外观: {_petForm.GetSkinDisplayName()}", 12, btnY, Color.FromArgb(192, 132, 252), (s, e) =>
+            _btnSkin = CreateMenuButton($"{L10n.MenuSwitchSkin}: {_petForm.GetSkinDisplayName()}", 12, btnY, Color.FromArgb(192, 132, 252), (s, e) =>
             {
                 _petForm.ToggleSkin();
                 UpdateSkinButtonText();
             });
             btnY += btnHeight + btnSpacing;
 
+            // Language Switcher Toggle
+            _btnLang = CreateMenuButton(GetLanguageButtonText(), 12, btnY, Color.FromArgb(52, 211, 153), (s, e) =>
+            {
+                CycleLanguage();
+            });
+            btnY += btnHeight + btnSpacing;
+
             // Next Wallpaper
-            var btnNext = CreateMenuButton("⏭ 换一张星球壁纸", 12, btnY, Color.FromArgb(241, 245, 249), (s, e) =>
+            _btnNext = CreateMenuButton(L10n.PetBtnNext, 12, btnY, Color.FromArgb(241, 245, 249), (s, e) =>
             {
                 _wallpaperForm.SendWebMessage("next_wallpaper");
                 Hide();
@@ -129,11 +143,11 @@ namespace EarthWallpaper
             btnY += btnHeight + btnSpacing;
 
             // Desktop Icons
-            _btnIcons = CreateMenuButton("👁 显隐桌面图标 (当前: 显示)", 12, btnY, Color.FromArgb(56, 189, 248), OnToggleIcons);
+            _btnIcons = CreateMenuButton(L10n.PetBtnIconsShow, 12, btnY, Color.FromArgb(56, 189, 248), OnToggleIcons);
             btnY += btnHeight + btnSpacing;
 
             // 3D Map
-            var btnMap = CreateMenuButton("🌐 在 Google Earth 3D 查看", 12, btnY, Color.FromArgb(52, 211, 153), (s, e) =>
+            _btnMap = CreateMenuButton(L10n.PetBtnMap, 12, btnY, Color.FromArgb(52, 211, 153), (s, e) =>
             {
                 Hide();
                 _petForm.OpenGoogleEarthMap();
@@ -141,7 +155,7 @@ namespace EarthWallpaper
             btnY += btnHeight + btnSpacing;
 
             // Dev Queue Monitor
-            var btnDev = CreateMenuButton("🛠️ 开发者 / 队列监控", 12, btnY, Color.FromArgb(148, 163, 184), (s, e) =>
+            _btnDev = CreateMenuButton(L10n.PetBtnDev, 12, btnY, Color.FromArgb(148, 163, 184), (s, e) =>
             {
                 Hide();
                 _petForm.OpenGeminiHub(false, true);
@@ -149,21 +163,22 @@ namespace EarthWallpaper
             btnY += btnHeight + btnSpacing;
 
             // Exit
-            var btnExit = CreateMenuButton("🚪 退出壁纸与桌宠 (恢复原壁纸)", 12, btnY, Color.FromArgb(248, 113, 113), (s, e) =>
+            _btnExit = CreateMenuButton(L10n.PetBtnExit, 12, btnY, Color.FromArgb(248, 113, 113), (s, e) =>
             {
                 DesktopWorker.RestoreOriginalWallpaper();
                 Application.Exit();
             });
 
             Controls.Add(_btnBookmark);
-            Controls.Add(btnViewBookmarks);
-            Controls.Add(btnGemini);
+            Controls.Add(_btnBookmarks);
+            Controls.Add(_btnGemini);
             Controls.Add(_btnSkin);
-            Controls.Add(btnNext);
+            Controls.Add(_btnLang);
+            Controls.Add(_btnNext);
             Controls.Add(_btnIcons);
-            Controls.Add(btnMap);
-            Controls.Add(btnDev);
-            Controls.Add(btnExit);
+            Controls.Add(_btnMap);
+            Controls.Add(_btnDev);
+            Controls.Add(_btnExit);
 
             ResumeLayout(false);
 
@@ -176,17 +191,59 @@ namespace EarthWallpaper
             Deactivate += (s, e) => Hide();
         }
 
+        private string GetLanguageButtonText()
+        {
+            var cur = L10n.CurrentLanguage;
+            string display = cur switch
+            {
+                AppLanguage.En => "English",
+                AppLanguage.Zh => "简体中文",
+                _ => L10n.IsChinese ? "跟随系统" : "System"
+            };
+            return $"🌐 语言 / Lang: {display}";
+        }
+
+        private void CycleLanguage()
+        {
+            var cur = L10n.CurrentLanguage;
+            var next = cur switch
+            {
+                AppLanguage.Auto => AppLanguage.En,
+                AppLanguage.En => AppLanguage.Zh,
+                _ => AppLanguage.Auto
+            };
+            L10n.SetLanguage(next);
+        }
+
+        public void RefreshLocalizedUi()
+        {
+            if (IsDisposed) return;
+            if (_lblTitle != null) _lblTitle.Text = L10n.PetMenuTitle;
+            if (_btnBookmarks != null) _btnBookmarks.Text = L10n.PetBtnBookmarks;
+            if (_btnGemini != null) _btnGemini.Text = L10n.PetBtnAskGemini;
+            if (_btnSkin != null) _btnSkin.Text = $"{L10n.MenuSwitchSkin}: {_petForm.GetSkinDisplayName()}";
+            if (_btnLang != null) _btnLang.Text = GetLanguageButtonText();
+            if (_btnNext != null) _btnNext.Text = L10n.PetBtnNext;
+            if (_btnIcons != null) _btnIcons.Text = _iconsVisible ? L10n.PetBtnIconsShow : L10n.PetBtnIconsHidden;
+            if (_btnMap != null) _btnMap.Text = L10n.PetBtnMap;
+            if (_btnDev != null) _btnDev.Text = L10n.PetBtnDev;
+            if (_btnExit != null) _btnExit.Text = L10n.PetBtnExit;
+
+            var loc = _wallpaperForm.CurrentLocation;
+            UpdateLocationDisplay(loc);
+        }
+
         public void UpdateLocationDisplay(LocationInfo? loc)
         {
             if (_lblLoc != null && loc != null)
             {
-                _lblLoc.Text = $"📍 当前漫游: {loc.GetDisplayName()}";
+                _lblLoc.Text = $"{L10n.PetLocPrefix}{loc.GetDisplayName()}";
             }
 
             if (_btnBookmark != null && loc != null)
             {
                 bool isBm = BookmarkManager.IsBookmarked(loc.Lat, loc.Lng);
-                _btnBookmark.Text = isBm ? "★ 已在收藏夹 (点击取消)" : "⭐ 收藏当前地标";
+                _btnBookmark.Text = isBm ? L10n.PetBtnBookmarkSaved : L10n.PetBtnBookmarkAdd;
                 _btnBookmark.ForeColor = isBm ? Color.FromArgb(250, 204, 21) : Color.FromArgb(241, 245, 249);
             }
         }
@@ -195,7 +252,7 @@ namespace EarthWallpaper
         {
             if (_btnSkin != null)
             {
-                _btnSkin.Text = $"🎨 外观: {_petForm.GetSkinDisplayName()}";
+                _btnSkin.Text = $"{L10n.MenuSwitchSkin}: {_petForm.GetSkinDisplayName()}";
             }
         }
 
@@ -205,7 +262,7 @@ namespace EarthWallpaper
             {
                 Text = text,
                 Location = new Point(x, y),
-                Size = new Size(266, 30),
+                Size = new Size(272, 30),
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 8.8f, FontStyle.Regular),
                 ForeColor = textColor,
@@ -229,7 +286,7 @@ namespace EarthWallpaper
             BookmarkManager.ToggleBookmark(loc, out bool nowBookmarked);
             if (_btnBookmark != null)
             {
-                _btnBookmark.Text = nowBookmarked ? "★ 已在收藏夹 (点击取消)" : "⭐ 收藏当前地标";
+                _btnBookmark.Text = nowBookmarked ? L10n.PetBtnBookmarkSaved : L10n.PetBtnBookmarkAdd;
                 _btnBookmark.ForeColor = nowBookmarked ? Color.FromArgb(250, 204, 21) : Color.FromArgb(241, 245, 249);
             }
         }
@@ -240,7 +297,7 @@ namespace EarthWallpaper
             _iconsVisible = nowVisible;
             if (_btnIcons != null)
             {
-                _btnIcons.Text = _iconsVisible ? "👁 显隐桌面图标 (当前: 显示)" : "👁‍🗨 显隐桌面图标 (当前: 已隐藏)";
+                _btnIcons.Text = _iconsVisible ? L10n.PetBtnIconsShow : L10n.PetBtnIconsHidden;
                 _btnIcons.ForeColor = _iconsVisible ? Color.FromArgb(56, 189, 248) : Color.FromArgb(250, 204, 21);
             }
         }
@@ -266,7 +323,7 @@ namespace EarthWallpaper
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
-            Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, Width, Height, 16, 16));
+            SafeGdi.ApplyRoundedRegion(this, 16);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -275,6 +332,15 @@ namespace EarthWallpaper
             using var pen = new Pen(Color.FromArgb(51, 65, 85), 1.5f);
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                L10n.OnLanguageChanged -= RefreshLocalizedUi;
+            }
+            base.Dispose(disposing);
         }
     }
 }

@@ -20,6 +20,21 @@ namespace EarthWallpaper
         private bool _isDesktopAttached = false;
         private string _appPath = string.Empty;
 
+        private ToolStripMenuItem? _itemIcons;
+        private ToolStripMenuItem? _itemNext;
+        private ToolStripMenuItem? _itemPrev;
+        private ToolStripMenuItem? _itemBookmarks;
+        private ToolStripMenuItem? _itemGemini;
+        private ToolStripMenuItem? _itemSkin;
+        private ToolStripMenuItem? _itemDev;
+        private ToolStripMenuItem? _itemReload;
+        private ToolStripMenuItem? _itemStartup;
+        private ToolStripMenuItem? _itemExit;
+        private ToolStripMenuItem? _itemLangMenu;
+        private ToolStripMenuItem? _itemLangAuto;
+        private ToolStripMenuItem? _itemLangEn;
+        private ToolStripMenuItem? _itemLangZh;
+
         public LocationInfo? CurrentLocation { get; private set; }
         [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public QueueStatusInfo? LatestQueueStatus { get; set; }
@@ -70,61 +85,115 @@ namespace EarthWallpaper
         {
             var menu = new ContextMenuStrip();
             
-            var itemIcons = new ToolStripMenuItem(L10n.MenuToggleIcons, null, (s, e) => DesktopWorker.ToggleDesktopIcons());
-            var itemNext = new ToolStripMenuItem(L10n.MenuNextWallpaper, null, (s, e) => SendWebMessage("next_wallpaper"));
-            var itemPrev = new ToolStripMenuItem(L10n.MenuPrevWallpaper, null, (s, e) => SendWebMessage("previous_wallpaper"));
-            var itemBookmarks = new ToolStripMenuItem(L10n.MenuBookmarks, null, (s, e) => _petForm?.OpenGeminiHub(true));
-            var itemGemini = new ToolStripMenuItem(L10n.MenuAskGemini, null, (s, e) => _petForm?.OpenGeminiHub(false));
+            _itemIcons = new ToolStripMenuItem(L10n.MenuToggleIcons, null, (s, e) => DesktopWorker.ToggleDesktopIcons());
+            _itemNext = new ToolStripMenuItem(L10n.MenuNextWallpaper, null, (s, e) => SendWebMessage("next_wallpaper"));
+            _itemPrev = new ToolStripMenuItem(L10n.MenuPrevWallpaper, null, (s, e) => SendWebMessage("previous_wallpaper"));
+            _itemBookmarks = new ToolStripMenuItem(L10n.MenuBookmarks, null, (s, e) => _petForm?.OpenGeminiHub(true));
+            _itemGemini = new ToolStripMenuItem(L10n.MenuAskGemini, null, (s, e) => _petForm?.OpenGeminiHub(false));
             
-            ToolStripMenuItem? itemSkin = null;
-            itemSkin = new ToolStripMenuItem($"{L10n.MenuSwitchSkin} ({_petForm?.GetSkinDisplayName() ?? "Classic"})", null, (s, e) =>
+            _itemSkin = new ToolStripMenuItem($"{L10n.MenuSwitchSkin} ({_petForm?.GetSkinDisplayName() ?? "Classic"})", null, (s, e) =>
             {
                 _petForm?.ToggleSkin();
-                if (itemSkin != null && _petForm != null)
-                {
-                    itemSkin.Text = $"{L10n.MenuSwitchSkin} ({_petForm.GetSkinDisplayName()})";
-                }
+                UpdateSkinMenuItemText();
             });
 
-            var itemDev = new ToolStripMenuItem(L10n.MenuDevTelemetry, null, (s, e) => _petForm?.OpenGeminiHub(false, true));
-            var itemReload = new ToolStripMenuItem(L10n.MenuReload, null, (s, e) => RestartApplication());
+            _itemLangMenu = new ToolStripMenuItem(L10n.MenuLanguage);
+            _itemLangAuto = new ToolStripMenuItem(L10n.LangAuto, null, (s, e) => L10n.SetLanguage(AppLanguage.Auto));
+            _itemLangEn = new ToolStripMenuItem(L10n.LangEn, null, (s, e) => L10n.SetLanguage(AppLanguage.En));
+            _itemLangZh = new ToolStripMenuItem(L10n.LangZh, null, (s, e) => L10n.SetLanguage(AppLanguage.Zh));
+
+            _itemLangMenu.DropDownItems.Add(_itemLangAuto);
+            _itemLangMenu.DropDownItems.Add(_itemLangEn);
+            _itemLangMenu.DropDownItems.Add(_itemLangZh);
+
+            _itemDev = new ToolStripMenuItem(L10n.MenuDevTelemetry, null, (s, e) => _petForm?.OpenGeminiHub(false, true));
+            _itemReload = new ToolStripMenuItem(L10n.MenuReload, null, (s, e) => RestartApplication());
             
-            var itemStartup = new ToolStripMenuItem();
-            itemStartup.Checked = IsStartupEnabled();
-            itemStartup.Text = itemStartup.Checked ? L10n.MenuStartupEnabled : L10n.MenuStartupDisabled;
-            itemStartup.Click += (s, e) =>
+            _itemStartup = new ToolStripMenuItem();
+            _itemStartup.Checked = IsStartupEnabled();
+            _itemStartup.Text = _itemStartup.Checked ? L10n.MenuStartupEnabled : L10n.MenuStartupDisabled;
+            _itemStartup.Click += (s, e) =>
             {
-                bool newState = !itemStartup.Checked;
+                bool newState = !_itemStartup.Checked;
                 SetStartupEnabled(newState);
-                itemStartup.Checked = newState;
-                itemStartup.Text = newState ? L10n.MenuStartupEnabled : L10n.MenuStartupDisabled;
+                _itemStartup.Checked = newState;
+                _itemStartup.Text = newState ? L10n.MenuStartupEnabled : L10n.MenuStartupDisabled;
             };
 
-            var itemExit = new ToolStripMenuItem(L10n.MenuExit, null, (s, e) => ExitApplication());
+            _itemExit = new ToolStripMenuItem(L10n.MenuExit, null, (s, e) => ExitApplication());
 
             menu.Items.AddRange(new ToolStripItem[] {
-                itemIcons,
-                itemNext,
-                itemPrev,
+                _itemIcons,
+                _itemNext,
+                _itemPrev,
                 new ToolStripSeparator(),
-                itemBookmarks,
-                itemGemini,
-                itemSkin,
+                _itemBookmarks,
+                _itemGemini,
+                _itemSkin,
+                _itemLangMenu,
                 new ToolStripSeparator(),
-                itemDev,
-                itemStartup,
-                itemReload,
-                itemExit
+                _itemDev,
+                _itemStartup,
+                _itemReload,
+                _itemExit
             });
 
             _trayIcon = new NotifyIcon
             {
-                Text = "Earth Tabliss - 高性能动态桌面壁纸与桌宠",
+                Text = L10n.AppDescription,
                 Icon = CreateEarthTrayIcon(),
                 ContextMenuStrip = menu,
                 Visible = true
             };
             _trayIcon.DoubleClick += (s, e) => _petForm?.OpenGeminiHub(false);
+
+            UpdateLanguageCheckmarks();
+            L10n.OnLanguageChanged += OnLanguageChangedHandler;
+        }
+
+        private void UpdateSkinMenuItemText()
+        {
+            if (_itemSkin != null && _petForm != null)
+            {
+                _itemSkin.Text = $"{L10n.MenuSwitchSkin} ({_petForm.GetSkinDisplayName()})";
+            }
+        }
+
+        private void UpdateLanguageCheckmarks()
+        {
+            var cur = L10n.CurrentLanguage;
+            if (_itemLangAuto != null) _itemLangAuto.Checked = (cur == AppLanguage.Auto);
+            if (_itemLangEn != null) _itemLangEn.Checked = (cur == AppLanguage.En);
+            if (_itemLangZh != null) _itemLangZh.Checked = (cur == AppLanguage.Zh);
+        }
+
+        private void OnLanguageChangedHandler()
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(OnLanguageChangedHandler));
+                return;
+            }
+
+            if (_trayIcon != null) _trayIcon.Text = L10n.AppDescription;
+            if (_itemIcons != null) _itemIcons.Text = L10n.MenuToggleIcons;
+            if (_itemNext != null) _itemNext.Text = L10n.MenuNextWallpaper;
+            if (_itemPrev != null) _itemPrev.Text = L10n.MenuPrevWallpaper;
+            if (_itemBookmarks != null) _itemBookmarks.Text = L10n.MenuBookmarks;
+            if (_itemGemini != null) _itemGemini.Text = L10n.MenuAskGemini;
+            UpdateSkinMenuItemText();
+            if (_itemDev != null) _itemDev.Text = L10n.MenuDevTelemetry;
+            if (_itemReload != null) _itemReload.Text = L10n.MenuReload;
+            if (_itemStartup != null) _itemStartup.Text = _itemStartup.Checked ? L10n.MenuStartupEnabled : L10n.MenuStartupDisabled;
+            if (_itemExit != null) _itemExit.Text = L10n.MenuExit;
+
+            if (_itemLangMenu != null) _itemLangMenu.Text = L10n.MenuLanguage;
+            if (_itemLangAuto != null) _itemLangAuto.Text = L10n.LangAuto;
+            if (_itemLangEn != null) _itemLangEn.Text = L10n.LangEn;
+            if (_itemLangZh != null) _itemLangZh.Text = L10n.LangZh;
+
+            UpdateLanguageCheckmarks();
+            SendWebMessage("set_language", L10n.IsChinese ? "zh" : "en");
         }
 
         private Icon CreateEarthTrayIcon()
@@ -132,19 +201,20 @@ namespace EarthWallpaper
             try
             {
                 using var bmp = new Bitmap(32, 32);
-                using var g = Graphics.FromImage(bmp);
-                g.SmoothingMode = SmoothingMode.AntiAlias;
+                using (var g = Graphics.FromImage(bmp))
+                {
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
 
-                using (var b = new SolidBrush(Color.FromArgb(15, 23, 42)))
-                    g.FillEllipse(b, 1, 1, 29, 29);
-                using (var p = new Pen(Color.FromArgb(56, 189, 248), 2f))
-                    g.DrawEllipse(p, 2, 2, 27, 27);
-                using var font = new Font("Segoe UI Emoji", 13f);
-                var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.DrawString("🌍", font, Brushes.White, new RectangleF(0, 0, 32, 32), sf);
+                    using (var b = new SolidBrush(Color.FromArgb(15, 23, 42)))
+                        g.FillEllipse(b, 1, 1, 29, 29);
+                    using (var p = new Pen(Color.FromArgb(56, 189, 248), 2f))
+                        g.DrawEllipse(p, 2, 2, 27, 27);
+                    using var font = new Font("Segoe UI Emoji", 13f);
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    g.DrawString("🌍", font, Brushes.White, new RectangleF(0, 0, 32, 32), sf);
+                }
 
-                IntPtr hIcon = bmp.GetHicon();
-                return Icon.FromHandle(hIcon);
+                return SafeGdi.CreateManagedIcon(bmp);
             }
             catch
             {
@@ -312,6 +382,10 @@ namespace EarthWallpaper
                         CoreWebView2HostResourceAccessKind.Allow
                     );
 
+                    _webView.CoreWebView2.NavigationCompleted += (s, e) =>
+                    {
+                        SendWebMessage("set_language", L10n.IsChinese ? "zh" : "en");
+                    };
                     _webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
                     _webView.CoreWebView2.Navigate("https://earthwallpaper.local/index.html");
                 }
@@ -415,6 +489,14 @@ namespace EarthWallpaper
             }
         }
 
+        public void SendWebMessage(string actionType, string lang)
+        {
+            if (_webView != null && _webView.CoreWebView2 != null)
+            {
+                _webView.CoreWebView2.PostWebMessageAsJson($"{{\"type\":\"{actionType}\",\"lang\":\"{lang}\"}}");
+            }
+        }
+
         public void ApplyCustomWallpaper(LocationInfo loc)
         {
             CurrentLocation = loc;
@@ -475,6 +557,7 @@ namespace EarthWallpaper
         {
             if (disposing)
             {
+                L10n.OnLanguageChanged -= OnLanguageChangedHandler;
                 _powerGovernor?.Dispose();
                 _trayIcon?.Dispose();
                 _petForm?.Dispose();
