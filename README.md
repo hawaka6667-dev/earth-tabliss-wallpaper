@@ -28,7 +28,7 @@
 
 ## 🚀 Download & Run
 
-1. Download **[EarthTabliss-v0.2.0-win-x64.zip](https://github.com/hawaka6667-dev/earth-tabliss-wallpaper/releases/latest/download/EarthTabliss-v0.2.0-win-x64.zip)** (Portable, No Installation Required).
+1. Download **[EarthTabliss-v0.3.0-win-x64.zip](https://github.com/hawaka6667-dev/earth-tabliss-wallpaper/releases/latest/download/EarthTabliss-v0.3.0-win-x64.zip)** (Portable, No Installation Required).
 2. Unzip anywhere and double-click `EarthWallpaper.exe` (or `start.bat`). Enjoy your new desktop!
 
 ## 📄 License
