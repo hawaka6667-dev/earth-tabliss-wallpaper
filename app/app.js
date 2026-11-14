@@ -45,6 +45,12 @@
     terrain: document.getElementById('geo-terrain'),
     valLat: document.getElementById('val-lat'),
     valLng: document.getElementById('val-lng'),
+    coordsBox: document.getElementById('geo-coords'),
+    coordCopied: document.getElementById('coord-copied'),
+    solarPill: document.getElementById('geo-solar'),
+    climatePill: document.getElementById('geo-climate'),
+    altPill: document.getElementById('geo-alt'),
+    mapLink: document.getElementById('geo-map-link'),
     drawerGemini: document.getElementById('drawer-gemini'),
     btnCloseGemini: document.getElementById('btn-close-gemini'),
     geminiTargetLoc: document.getElementById('gemini-target-loc'),
@@ -153,6 +159,74 @@
     return { en: 'Plains', zh: '平原绿洲' };
   }
 
+  // Geographical & Astronomical Metadata Calculator
+  function updateGeoMetadata(item) {
+    if (!item) return;
+    const lat = parseFloat(item.coords ? item.coords.lat : (item.map ? (item.map.match(/@(-?\d+\.\d+),/)||[])[1] : 0)) || 0;
+    const lng = parseFloat(item.coords ? item.coords.lng : (item.map ? (item.map.match(/@(?:-?\d+\.\d+),(-?\d+\.\d+)/)||[])[1] : 0)) || 0;
+
+    // 1. Local Solar Time
+    if (el.solarPill) {
+      const now = new Date();
+      const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+      const offsetMinutes = Math.round(lng * 4);
+      let solarMinutes = (utcMinutes + offsetMinutes) % 1440;
+      if (solarMinutes < 0) solarMinutes += 1440;
+      const sH = Math.floor(solarMinutes / 60);
+      const sM = solarMinutes % 60;
+      const isDay = (sH >= 6 && sH < 18);
+      const icon = isDay ? '☀️' : '🌙';
+      const offsetHours = (offsetMinutes / 60).toFixed(offsetMinutes % 60 === 0 ? 0 : 1);
+      const offsetStr = offsetHours >= 0 ? `+${offsetHours}` : `${offsetHours}`;
+      el.solarPill.textContent = `${icon} ${String(sH).padStart(2, '0')}:${String(sM).padStart(2, '0')} (UTC${offsetStr})`;
+      el.solarPill.title = state.lang === 'zh'
+        ? `当地太阳时: ${sH}:${String(sM).padStart(2, '0')} (偏离UTC ${offsetStr}小时)`
+        : `Local Solar Time: ${sH}:${String(sM).padStart(2, '0')} (UTC${offsetStr})`;
+    }
+
+    // 2. Climate & Latitudinal Zone
+    if (el.climatePill) {
+      const absLat = Math.abs(lat);
+      const isNorth = lat >= 0;
+      if (state.lang === 'zh') {
+        const hem = isNorth ? '北半球' : '南半球';
+        let zone = '温带';
+        if (absLat <= 23.5) zone = '热带';
+        else if (absLat <= 35) zone = '亚热带';
+        else if (absLat > 66.5) zone = '极地';
+        el.climatePill.textContent = `${hem}·${zone}`;
+        el.climatePill.title = `纬度气候带: ${hem} ${zone} (纬度 ${lat.toFixed(2)}°)`;
+      } else {
+        const hem = isNorth ? 'N.' : 'S.';
+        let zone = 'Temperate';
+        if (absLat <= 23.5) zone = 'Tropics';
+        else if (absLat <= 35) zone = 'Subtropics';
+        else if (absLat > 66.5) zone = 'Polar';
+        el.climatePill.textContent = `${hem} ${zone}`;
+        el.climatePill.title = `Climate Zone: ${hem} ${zone} (Lat ${lat.toFixed(2)}°)`;
+      }
+    }
+
+    // 3. Satellite Eye Altitude
+    if (el.altPill) {
+      const zoomMatch = (item.map || '').match(/,(\d+)z/);
+      const zoom = zoomMatch ? parseInt(zoomMatch[1], 10) : 12;
+      let altKm = Math.round(591657550 * Math.pow(2, -zoom) / 1000);
+      if (isNaN(altKm) || altKm < 1) altKm = 18;
+      el.altPill.textContent = `ALT: ~${altKm}km`;
+      el.altPill.title = state.lang === 'zh'
+        ? `卫星视高估算: 约 ${altKm} 公里 (缩放层级 ${zoom}z)`
+        : `Satellite Eye Altitude: ~${altKm} km (Zoom level ${zoom}z)`;
+    }
+
+    // 4. Google Maps Satellite Link
+    if (el.mapLink) {
+      const mapUrl = item.map || `https://www.google.com/maps/@${lat},${lng},12z/data=!3m1!1e3`;
+      el.mapLink.href = mapUrl;
+      el.mapLink.textContent = state.lang === 'zh' ? '地图 ↗' : 'MAP ↗';
+    }
+  }
+
   // 3. Preload Queue Buffer Engine (Fisher-Yates Dynamic Shuffle Deck)
   function initShuffleDeck() {
     if (!state.locations || state.locations.length === 0) return;
@@ -239,6 +313,8 @@
       el.terrain.textContent = state.lang === 'zh' ? terrain.zh : terrain.en;
       el.terrain.title = state.lang === 'zh' ? `地貌分类: ${terrain.zh}` : `Terrain: ${terrain.en}`;
     }
+
+    updateGeoMetadata(item);
 
     // Double-buffer swap with clean direct image URL
     const targetLayer = state.activeLayer === 'a' ? el.bgB : el.bgA;
@@ -484,6 +560,7 @@
             el.terrain.textContent = state.lang === 'zh' ? terrain.zh : terrain.en;
             el.terrain.title = state.lang === 'zh' ? `地貌分类: ${terrain.zh}` : `Terrain: ${terrain.en}`;
           }
+          updateGeoMetadata(state.currentLocation);
         }
       } else if (msg.type === 'set_custom_wallpaper') {
         const item = msg.data;
@@ -498,6 +575,35 @@
 
   if (el.btnCloseGemini) el.btnCloseGemini.addEventListener('click', closeGemini);
   if (el.btnRunGemini) el.btnRunGemini.addEventListener('click', openGemini);
+
+  if (el.coordsBox) {
+    el.coordsBox.addEventListener('click', (e) => {
+      if (e.target.closest('a')) return;
+      const lat = el.valLat ? el.valLat.textContent : '';
+      const lng = el.valLng ? el.valLng.textContent : '';
+      if (!lat || !lng) return;
+      const coordStr = `${lat}, ${lng}`;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(coordStr).then(() => {
+          showCopiedToast();
+        }).catch(() => {
+          showCopiedToast();
+        });
+      } else {
+        showCopiedToast();
+      }
+    });
+  }
+
+  function showCopiedToast() {
+    if (!el.coordCopied) return;
+    el.coordCopied.classList.remove('show');
+    void el.coordCopied.offsetWidth; // trigger reflow
+    el.coordCopied.classList.add('show');
+    setTimeout(() => {
+      if (el.coordCopied) el.coordCopied.classList.remove('show');
+    }, 1500);
+  }
 
   loadEarthLocations();
 
