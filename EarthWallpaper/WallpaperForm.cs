@@ -437,7 +437,8 @@ namespace EarthWallpaper
                         Country = dataEl.TryGetProperty("country", out var cEl) ? cEl.GetString() ?? "" : "",
                         Region = dataEl.TryGetProperty("region", out var rEl) ? rEl.GetString() ?? "" : "",
                         MapUrl = dataEl.TryGetProperty("map", out var mEl) ? mEl.GetString() ?? "" : "",
-                        ImageUrl = dataEl.TryGetProperty("image", out var imgEl) ? imgEl.GetString() ?? "" : ""
+                        ImageUrl = dataEl.TryGetProperty("image", out var imgEl) ? imgEl.GetString() ?? "" : "",
+                        Terrain = dataEl.TryGetProperty("terrain", out var tEl) ? tEl.GetString() ?? "" : ""
                     };
                     if (dataEl.TryGetProperty("coords", out var coordsEl))
                     {

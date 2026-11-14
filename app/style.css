@@ -149,7 +149,7 @@ html, body {
 }
 
 .geo-card {
-  max-width: 380px;
+  max-width: 420px;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: 14px;
@@ -166,7 +166,7 @@ html, body {
 .geo-title-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .geo-pin {
@@ -178,6 +178,22 @@ html, body {
   font-weight: 600;
   color: #ffffff;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+}
+
+.geo-terrain {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 1px 8px;
+  border-radius: 4px;
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .geo-region {

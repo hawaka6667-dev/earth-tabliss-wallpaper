@@ -28,7 +28,7 @@
     currentLocation: OFFLINE_FALLBACK,
     shuffledIndices: [],
     shufflePtr: 0,
-    lang: 'zh'
+    lang: (new URLSearchParams(window.location.search).get('lang')) || 'zh'
   };
 
   const el = {
@@ -42,6 +42,7 @@
     greeting: document.getElementById('greeting-display'),
     country: document.getElementById('geo-country'),
     region: document.getElementById('geo-region'),
+    terrain: document.getElementById('geo-terrain'),
     valLat: document.getElementById('val-lat'),
     valLng: document.getElementById('val-lng'),
     drawerGemini: document.getElementById('drawer-gemini'),
@@ -108,6 +109,48 @@
       };
     }
     return { lat: '0.000000', lng: '0.000000' };
+  }
+
+  // Landform & Terrain Classification (Clean Typography, No Emoji)
+  function classifyTerrain(item) {
+    if (!item) return { en: 'Plains', zh: '平原绿洲' };
+    const c = (item.country || '').toLowerCase();
+    const r = (item.region || '').toLowerCase();
+    const text = c + ' ' + r;
+    const lat = parseFloat(item.coords ? item.coords.lat : (item.map ? (item.map.match(/@(-?\d+\.\d+),/)||[])[1] : 0)) || 0;
+    const lng = parseFloat(item.coords ? item.coords.lng : (item.map ? (item.map.match(/@(?:-?\d+\.\d+),(-?\d+\.\d+)/)||[])[1] : 0)) || 0;
+
+    if (/glacier|ice|fjord|polar|nunatak|icefield|snow|frozen|antarctica|greenland|svalbard/.test(text) || lat < -60 || lat > 72) {
+      return { en: 'Glacial', zh: '冰川极地' };
+    }
+    if (/volcan|caldera|crater|geothermal|fumarole|lava|basalt/.test(text)) {
+      return { en: 'Volcanic', zh: '火山地热' };
+    }
+    if (/reef|atoll|bay|gulf|strait|coast|island|isle|peninsula|sound|beach|archipelago|lagoon|sea|ocean|channel|cape|shoal|sandbank|caye|inlet|hainan|bahamas|maldives|fiji|hawaii/.test(text) ||
+        (c === 'australia' && (lat < -10 && lat > -12 && lng > 140))) {
+      return { en: 'Coastal', zh: '海洋海岸' };
+    }
+    if (/river|delta|estuary|basin|creek|lake|wetland|marsh|floodplain|meander|mangrove|swamp|reservoir|tributary/.test(text)) {
+      return { en: 'River / Wetland', zh: '水系湿地' };
+    }
+    if (/desert|dune|erg|badlands|arid|salt|playa|salar|wadi|sand|sahara|gobi|kalahari|namib|atacama|rub' al khali|tamarugal/.test(text) ||
+        /algeria|libya|egypt|mauritania|chad|niger|mali|sudan|saudi arabia|yemen|oman|kuwait|qatar|united arab emirates|somalia|djibouti|namibia/.test(c) ||
+        (c === 'chile' && lat > -27 && lat < -18) ||
+        (c === 'australia' && lat > -32 && lat < -18 && lng > 115 && lng < 142)) {
+      return { en: 'Desert', zh: '荒漠戈壁' };
+    }
+    if (/mount|peak|range|alps|plateau|canyon|valley|gorge|andes|himalaya|sierra|highland|cordillera|ridge|pass|cliff|mesa|crag/.test(text) ||
+        /nepal|bhutan/.test(c) || /ngari|tibet|shannan|nagqu|qinghai/.test(r)) {
+      return { en: 'Mountain', zh: '山脉高原' };
+    }
+    if (/city|capital|port|harbor|district|metro|town|center|airport/.test(text)) {
+      return { en: 'Urban', zh: '城市聚落' };
+    }
+    if (/plain|forest|jungle|rainforest|woods|prairie|savanna|steppe|taiga|field|meadow|farm|agriculture|grass/.test(text)) {
+      return { en: 'Plains', zh: '平原绿洲' };
+    }
+    if (Math.abs(lat) > 40) return { en: 'Mountain', zh: '山脉高原' };
+    return { en: 'Plains', zh: '平原绿洲' };
   }
 
   // 3. Preload Queue Buffer Engine (Fisher-Yates Dynamic Shuffle Deck)
@@ -185,10 +228,17 @@
     if (!item.coords) item.coords = parseCoordinates(item.map);
 
     // Update HUD typography
-    el.country.textContent = item.country || '地球未知秘境';
-    el.region.textContent = item.region || '自然地貌卫星观测';
+    el.country.textContent = item.country || (state.lang === 'zh' ? '地球未知秘境' : 'Unknown Location');
+    el.region.textContent = item.region || (state.lang === 'zh' ? '自然地貌卫星观测' : 'Satellite Observation');
     el.valLat.textContent = item.coords.lat;
     el.valLng.textContent = item.coords.lng;
+
+    const terrain = classifyTerrain(item);
+    item.terrain = terrain.en;
+    if (el.terrain) {
+      el.terrain.textContent = state.lang === 'zh' ? terrain.zh : terrain.en;
+      el.terrain.title = state.lang === 'zh' ? `地貌分类: ${terrain.zh}` : `Terrain: ${terrain.en}`;
+    }
 
     // Double-buffer swap with clean direct image URL
     const targetLayer = state.activeLayer === 'a' ? el.bgB : el.bgA;
@@ -212,7 +262,8 @@
           region: item.region || '',
           coords: item.coords,
           map: item.map || '',
-          image: item.image || ''
+          image: item.image || '',
+          terrain: item.terrain || ''
         }
       });
       sendQueueStatus();
@@ -427,6 +478,13 @@
       } else if (msg.type === 'set_language') {
         state.lang = msg.lang || 'zh';
         updateClock();
+        if (state.currentLocation) {
+          const terrain = classifyTerrain(state.currentLocation);
+          if (el.terrain) {
+            el.terrain.textContent = state.lang === 'zh' ? terrain.zh : terrain.en;
+            el.terrain.title = state.lang === 'zh' ? `地貌分类: ${terrain.zh}` : `Terrain: ${terrain.en}`;
+          }
+        }
       } else if (msg.type === 'set_custom_wallpaper') {
         const item = msg.data;
         if (!item || !item.image) return;

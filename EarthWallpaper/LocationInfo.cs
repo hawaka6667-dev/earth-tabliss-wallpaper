@@ -11,6 +11,7 @@ namespace EarthWallpaper
         public string Lng { get; set; } = "0.000000";
         public string MapUrl { get; set; } = string.Empty;
         public string ImageUrl { get; set; } = string.Empty;
+        public string Terrain { get; set; } = string.Empty;
 
         public string GetDisplayName()
         {
